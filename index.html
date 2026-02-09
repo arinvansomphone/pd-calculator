@@ -56,7 +56,6 @@
 
         main {
             padding: 40px 40px 40px 40px;
-            max-width: 1200px;
             flex: 1;
         }
 
@@ -71,6 +70,253 @@
             font-size: 16px;
             color: #000;
             line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .description a {
+            color: #000;
+            text-decoration: underline;
+        }
+
+        .description a:hover {
+            color: #0066cc;
+        }
+
+        .boxes-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .top-row {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .bottom-row {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .data-box {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e0e0e0;
+            width: 400px;
+            flex-shrink: 0;
+        }
+
+        .data-box h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        .patient-inputs-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .patient-column {
+            flex: 1;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #000;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: white;
+            color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        .input-group input[readonly] {
+            background-color: #f5f5f5;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .treatment-box {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e0e0e0;
+            width: 800px;
+            flex-shrink: 0;
+        }
+
+        .treatment-box h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        .prescriptions-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .prescription-column {
+            flex: 1;
+        }
+
+        .prescription-column h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #000;
+        }
+
+        .days-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: flex-start;
+        }
+
+        .day-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .day-item label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #000;
+        }
+
+        .day-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .prescription-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .prescription-table th {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 6px;
+            text-align: center;
+            color: #000;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .prescription-table td {
+            padding: 8px 6px;
+        }
+
+        .prescription-table td:first-child {
+            font-size: 13px;
+            font-weight: 500;
+            color: #000;
+        }
+
+        .prescription-table input[type="number"] {
+            width: 100%;
+            padding: 6px 8px;
+            font-size: 13px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background-color: white;
+            color: #000;
+        }
+
+        .prescription-table input[type="number"]:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        .graph-box {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e0e0e0;
+            flex: 1;
+        }
+
+        .graph-box h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        .results-box {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e0e0e0;
+            flex: 1;
+        }
+
+        .results-box h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 8px 16px;
+            text-align: left;
+        }
+
+        .results-table th {
+            font-weight: 600;
+            text-align: center;
+            padding-bottom: 16px;
+        }
+
+        .results-table td:first-child {
+            font-weight: 500;
+            padding-right: 40px;
+        }
+
+        .results-table td:not(:first-child) {
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .results-table tr:last-child td {
+            padding-top: 16px;
         }
 
         footer {
@@ -92,15 +338,272 @@
 
     <main>
         <h1>PD Weekly Cycle Calculator</h1>
-        <p class="description">Visualize the effect of different peritoneal dialysis prescriptions on plasma solute levels throughout a weekly dialysis cycle.</p>
+        <p class="description">Questions or concerns about program? Email <a href="mailto:twmeyer@stanford.edu">twmeyer@stanford.edu</a>.</p>
         
-        <!-- Calculator content will go here -->
+        <div class="boxes-container">
+            <div class="top-row">
+                <div class="data-box">
+                    <h2>Patient Data</h2>
+                    
+                    <div class="patient-inputs-container">
+                        <div class="patient-column">
+                            <div class="input-group">
+                                <label for="age">Age (years)</label>
+                                <input type="number" id="age" name="age" min="0" step="any">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="height">Height (cm)</label>
+                                <input type="number" id="height" name="height" min="0" step="any">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="volume">Volume of Distribution of Urea (L)</label>
+                                <input type="number" id="volume" name="volume" min="0" step="0.1" readonly>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="pna">PNA (g/kg/day)</label>
+                                <input type="number" id="pna" name="pna" min="0" step="any">
+                            </div>
+                        </div>
+                        
+                        <div class="patient-column">
+                            <div class="input-group">
+                                <label for="weight">Weight (kg)</label>
+                                <input type="number" id="weight" name="weight" min="0" step="any">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="sex">Sex</label>
+                                <select id="sex" name="sex">
+                                    <option value="">Select...</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="kru">Kru (mL/min)</label>
+                                <input type="number" id="kru" name="kru" min="0" step="any">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="mtac">Transport Category</label>
+                                <select id="mtac" name="mtac">
+                                    <option value="">Select...</option>
+                                    <option value="27.2">High, MTAC (mL/min)=27.2</option>
+                                    <option value="23.1">High Average, MTAC (mL/min)=23.1</option>
+                                    <option value="18.4">Low Average, MTAC (mL/min)=18.4</option>
+                                    <option value="15.9">Low, MTAC (mL/min)=15.9</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="graph-box">
+                    <h2>Graph</h2>
+                    <canvas id="plasmaGraph"></canvas>
+                </div>
+            </div>
+            
+            <div class="bottom-row">
+                <div class="treatment-box">
+                    <h2>Prescription Data</h2>
+                    
+                    <div class="prescriptions-container">
+                        <div class="prescription-column">
+                            <h3>Prescription 1</h3>
+                            
+                            <div class="days-selector">
+                                <div class="day-item">
+                                    <label for="p1-mon">M</label>
+                                    <input type="checkbox" id="p1-mon" name="p1-mon" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p1-tue">T</label>
+                                    <input type="checkbox" id="p1-tue" name="p1-tue" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p1-wed">W</label>
+                                    <input type="checkbox" id="p1-wed" name="p1-wed" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p1-thu">T</label>
+                                    <input type="checkbox" id="p1-thu" name="p1-thu" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p1-fri">F</label>
+                                    <input type="checkbox" id="p1-fri" name="p1-fri" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p1-sat">S</label>
+                                    <input type="checkbox" id="p1-sat" name="p1-sat" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p1-sun">S</label>
+                                    <input type="checkbox" id="p1-sun" name="p1-sun" checked>
+                                </div>
+                            </div>
+                            
+                            <table class="prescription-table">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>Number</th>
+                                        <th>Volume (L)</th>
+                                        <th>Time (min)</th>
+                                        <th>UF (mL)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Repeated Exchanges (cycler or CAPD)</td>
+                                        <td><input type="number" id="p1-rep-number" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-rep-volume" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-rep-time" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-rep-uf" min="0" step="any"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Additional Exchange #1 (if used)</td>
+                                        <td><input type="number" id="p1-add1-number" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-add1-volume" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-add1-time" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-add1-uf" min="0" step="any"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Additional Exchange #2 (if used)</td>
+                                        <td><input type="number" id="p1-add2-number" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-add2-volume" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-add2-time" min="0" step="any"></td>
+                                        <td><input type="number" id="p1-add2-uf" min="0" step="any"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="prescription-column">
+                            <h3>Prescription 2</h3>
+                            
+                            <div class="days-selector">
+                                <div class="day-item">
+                                    <label for="p2-mon">M</label>
+                                    <input type="checkbox" id="p2-mon" name="p2-mon" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p2-tue">T</label>
+                                    <input type="checkbox" id="p2-tue" name="p2-tue" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p2-wed">W</label>
+                                    <input type="checkbox" id="p2-wed" name="p2-wed" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p2-thu">T</label>
+                                    <input type="checkbox" id="p2-thu" name="p2-thu" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p2-fri">F</label>
+                                    <input type="checkbox" id="p2-fri" name="p2-fri" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p2-sat">S</label>
+                                    <input type="checkbox" id="p2-sat" name="p2-sat" checked>
+                                </div>
+                                <div class="day-item">
+                                    <label for="p2-sun">S</label>
+                                    <input type="checkbox" id="p2-sun" name="p2-sun" checked>
+                                </div>
+                            </div>
+                            
+                            <table class="prescription-table">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>Number</th>
+                                        <th>Volume (L)</th>
+                                        <th>Time (min)</th>
+                                        <th>UF (mL)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Automated Drain</td>
+                                        <td><input type="number" id="p2-rep-number" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-rep-volume" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-rep-time" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-rep-uf" min="0" step="any"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Manual Drain</td>
+                                        <td><input type="number" id="p2-add1-number" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-add1-volume" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-add1-time" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-add1-uf" min="0" step="any"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Additional Manual Drain</td>
+                                        <td><input type="number" id="p2-add2-number" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-add2-volume" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-add2-time" min="0" step="any"></td>
+                                        <td><input type="number" id="p2-add2-uf" min="0" step="any"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results-box">
+                    <h2>Numeric Results</h2>
+                    
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Treatment 1</th>
+                                <th>Treatment 2</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>stdKt/V</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>APC (mg/dl)</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>TAC (mg/dl)</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Kurea (ml/min)</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </main>
 
     <footer>
         Version 1.0
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="controller.js"></script>
     <script src="graph.js"></script>
 </body>
