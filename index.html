@@ -169,6 +169,7 @@
         }
 
         input[type="number"] {
+            appearance: textfield;
             -moz-appearance: textfield;
         }
 
@@ -458,11 +459,11 @@
                             </div>
                             
                             <div class="input-group">
-                                <label for="mtac">Transport Category</label>
+                                <label for="mtac">Transport Category, default is High Average</label>
                                 <select id="mtac" name="mtac">
                                     <option value="">Select...</option>
                                     <option value="27.2">High, MTAC (mL/min)=27.2</option>
-                                    <option value="23.1">High Average, MTAC (mL/min)=23.1</option>
+                                    <option value="23.1" selected>High Average, MTAC (mL/min)=23.1</option>
                                     <option value="18.4">Low Average, MTAC (mL/min)=18.4</option>
                                     <option value="15.9">Low, MTAC (mL/min)=15.9</option>
                                 </select>

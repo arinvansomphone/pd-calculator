@@ -157,6 +157,7 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     let initial_equilibrium_tolerance = 0.001;
     let initial_steady_state = 0;
     let initial_Concentration = 1;
+    let previousWeekProfile = null; // Track previous week's entire profile
     let t = 0;
     let peak_index = 0;
     
@@ -168,7 +169,7 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     
     const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     
-    const max_iter = 1000;
+    const max_iter = 10000; // Increased from 1000
     let iterCount = 0;
     
     while (initial_steady_state == 0 && iterCount++ < max_iter) {
@@ -291,16 +292,79 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
             }
         }
         
-        // Check for steady state
-        if (t > 0 && Math.abs(plasmaConcentration[t - 1] - initial_Concentration) < (initial_equilibrium_tolerance * initial_Concentration)) {
-            initial_steady_state = 1;
-        } else {
-            initial_Concentration = t > 0 ? plasmaConcentration[t - 1] : 1;
+        // Check for steady state - compare entire week profile to previous week
+        const currentWeekStartConcentration = plasmaConcentration[0];
+        const currentWeekEndConcentration = plasmaConcentration[t - 1];
+        
+        // Debug: log actual t value
+        if (iterCount <= 5) {
+            console.log(`Iteration ${iterCount}: t=${t}, expected=10080, Start=${currentWeekStartConcentration.toFixed(2)}, End=${currentWeekEndConcentration.toFixed(2)}`);
         }
+        
+        if (previousWeekProfile !== null) {
+            // Check key time points throughout the week (every day at midnight)
+            let maxDifference = 0;
+            let maxRelativeDiff = 0;
+            const checkPoints = [];
+            
+            for (let day = 0; day < 7; day++) {
+                const timePoint = day * 24 * 60; // Midnight of each day
+                if (timePoint < t && timePoint < previousWeekProfile.length) {
+                    const currentValue = plasmaConcentration[timePoint];
+                    const previousValue = previousWeekProfile[timePoint];
+                    
+                    // Sanity check
+                    if (isNaN(currentValue) || isNaN(previousValue)) {
+                        console.error(`NaN detected at day ${day}: current=${currentValue}, previous=${previousValue}`);
+                        continue;
+                    }
+                    
+                    const diff = Math.abs(currentValue - previousValue);
+                    const relDiff = diff / previousValue;
+                    
+                    checkPoints.push({
+                        day: daysOfWeek[day],
+                        current: currentValue,
+                        previous: previousValue,
+                        diff: relDiff
+                    });
+                    
+                    if (relDiff > maxRelativeDiff) {
+                        maxRelativeDiff = relDiff;
+                        maxDifference = diff;
+                    }
+                }
+            }
+            
+            if (maxRelativeDiff < initial_equilibrium_tolerance) {
+                initial_steady_state = 1;
+                console.log(`Steady state reached after ${iterCount} iterations`);
+                console.log(`Week start: ${currentWeekStartConcentration.toFixed(2)} mg/L, Week end: ${currentWeekEndConcentration.toFixed(2)} mg/L`);
+                console.log(`Max difference across all checkpoints: ${maxDifference.toFixed(4)} mg/L (${(maxRelativeDiff * 100).toFixed(4)}%)`);
+                checkPoints.forEach(cp => {
+                    console.log(`  ${cp.day}: ${cp.current.toFixed(2)} vs ${cp.previous.toFixed(2)} (${(cp.diff * 100).toFixed(4)}%)`);
+                });
+            } else {
+                if (iterCount % 50 === 0 || iterCount <= 10) {
+                    console.log(`Iteration ${iterCount}: Start=${currentWeekStartConcentration.toFixed(2)}, End=${currentWeekEndConcentration.toFixed(2)}, MaxDiff=${(maxRelativeDiff * 100).toFixed(3)}%`);
+                    if (iterCount <= 10) {
+                        // Show first few checkpoints for debugging
+                        checkPoints.slice(0, 3).forEach(cp => {
+                            console.log(`  ${cp.day}: ${cp.current.toFixed(2)} vs ${cp.previous.toFixed(2)} (${(cp.diff * 100).toFixed(3)}%)`);
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Store current week's profile and update for next iteration
+        previousWeekProfile = plasmaConcentration.slice(0, t); // Copy current week
+        initial_Concentration = currentWeekEndConcentration;
     }
     
     if (iterCount >= max_iter) {
         console.warn("pdCalculator: reached maximum iterations without converging");
+        console.warn(`Final week: Start=${plasmaConcentration[0].toFixed(2)}, End=${plasmaConcentration[t-1].toFixed(2)}`);
     }
     
     return {
@@ -475,8 +539,13 @@ function updateButtonStates() {
     const button1 = document.getElementById('run-treatment-1');
     const button2 = document.getElementById('run-treatment-2');
     
-    button1.disabled = !validatePrescription(1);
-    button2.disabled = !validatePrescription(2);
+    // Both buttons are enabled only if BOTH prescriptions are valid
+    const prescription1Valid = validatePrescription(1);
+    const prescription2Valid = validatePrescription(2);
+    const bothValid = prescription1Valid && prescription2Valid;
+    
+    button1.disabled = !bothValid;
+    button2.disabled = !bothValid;
 }
 
 // Add event listeners to all inputs that affect volume calculation
