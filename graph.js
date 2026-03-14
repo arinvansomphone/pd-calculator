@@ -1,14 +1,27 @@
 // Initialize the plasma concentration graph
 let plasmaChart = null;
 
+const TREATMENT_COLORS = [
+    'rgb(255, 99, 132)',   // Treatment 1 - red
+    'rgb(75, 192, 192)',   // Treatment 2 - teal
+    'rgb(54, 162, 235)',   // Treatment 3 - blue
+    'rgb(255, 159, 64)'    // Treatment 4 - orange
+];
+const TREATMENT_LABELS = [
+    'Treatment 1',
+    'Treatment 2',
+    'Treatment 3',
+    'Treatment 4'
+];
+
 function createCustomLegend() {
     const legendContainer = document.getElementById('customLegend');
-    const datasets = [
-        { label: 'Treatment 1', color: 'rgb(75, 192, 192)', dashed: false, index: 0 },
-        { label: 'Treatment 1 Avg', color: 'rgba(75, 192, 192, 0.5)', dashed: true, index: 1 },
-        { label: 'Treatment 2', color: 'rgb(255, 99, 132)', dashed: false, index: 2 },
-        { label: 'Treatment 2 Avg', color: 'rgba(255, 99, 132, 0.5)', dashed: true, index: 3 }
-    ];
+    const toRgba = (rgb) => rgb.replace('rgb', 'rgba').replace(')', ', 0.5)');
+    const datasets = [];
+    for (let i = 0; i < 4; i++) {
+        datasets.push({ label: TREATMENT_LABELS[i], color: TREATMENT_COLORS[i], dashed: false, index: i * 2 });
+        datasets.push({ label: TREATMENT_LABELS[i] + ' Avg', color: toRgba(TREATMENT_COLORS[i]), dashed: true, index: i * 2 + 1 });
+    }
     
     legendContainer.innerHTML = '';
     
@@ -46,46 +59,30 @@ function createCustomLegend() {
 function initializeGraph() {
     const ctx = document.getElementById('plasmaGraph');
     
-    // Empty data on initialization
+    // Empty data on initialization - 4 treatments, each with solid + avg dashed line
     const sampleData = {
         labels: [],
-        datasets: [
-            {
-                label: 'Treatment 1',
-                data: [],
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.4,
-                fill: false
-            },
-            {
-                label: 'Treatment 1 Avg',
-                data: [],
-                borderColor: 'rgba(75, 192, 192, 0.5)',
-                borderWidth: 2,
-                borderDash: [5, 5],
-                tension: 0,
-                fill: false,
-                pointRadius: 0
-            },
-            {
-                label: 'Treatment 2',
-                data: [],
-                borderColor: 'rgb(255, 99, 132)',
-                tension: 0.4,
-                fill: false
-            },
-            {
-                label: 'Treatment 2 Avg',
-                data: [],
-                borderColor: 'rgba(255, 99, 132, 0.5)',
-                borderWidth: 2,
-                borderDash: [5, 5],
-                tension: 0,
-                fill: false,
-                pointRadius: 0
-            }
-        ]
+        datasets: []
     };
+    for (let i = 0; i < 4; i++) {
+        sampleData.datasets.push({
+            label: TREATMENT_LABELS[i],
+            data: [],
+            borderColor: TREATMENT_COLORS[i],
+            tension: 0.4,
+            fill: false
+        });
+        sampleData.datasets.push({
+            label: TREATMENT_LABELS[i] + ' Avg',
+            data: [],
+            borderColor: TREATMENT_COLORS[i].replace('rgb', 'rgba').replace(')', ', 0.5)'),
+            borderWidth: 2,
+            borderDash: [5, 5],
+            tension: 0,
+            fill: false,
+            pointRadius: 0
+        });
+    }
     
     plasmaChart = new Chart(ctx, {
         type: 'line',
@@ -171,31 +168,25 @@ function initializeGraph() {
     });
 }
 
-// Function to update graph with new data
-function updateGraph(timeData, treatment1Data, treatment2Data, treatment1Avg, treatment2Avg) {
+// Function to update graph with new data - treatmentsData: [{data, avg}, ...] for up to 4 treatments
+function updateGraph(timeData, treatmentsData) {
     if (plasmaChart) {
         plasmaChart.data.labels = timeData;
         
-        // Update datasets in order: T1, T1 Avg, T2, T2 Avg
-        plasmaChart.data.datasets[0].data = treatment1Data;
-        
-        // Update Treatment 1 average line
-        if (treatment1Avg !== null && treatment1Data.length > 0) {
-            const avgData1 = timeData.map(() => treatment1Avg);
-            plasmaChart.data.datasets[1].data = avgData1;
-        } else {
-            plasmaChart.data.datasets[1].data = [];
-        }
-        
-        // Update Treatment 2 line
-        plasmaChart.data.datasets[2].data = treatment2Data;
-        
-        // Update Treatment 2 average line
-        if (treatment2Avg !== null && treatment2Data.length > 0) {
-            const avgData2 = timeData.map(() => treatment2Avg);
-            plasmaChart.data.datasets[3].data = avgData2;
-        } else {
-            plasmaChart.data.datasets[3].data = [];
+        for (let i = 0; i < 4; i++) {
+            const treatment = treatmentsData[i];
+            const dataIdx = i * 2;
+            const avgIdx = i * 2 + 1;
+            
+            if (treatment && treatment.data && treatment.data.length > 0) {
+                plasmaChart.data.datasets[dataIdx].data = treatment.data;
+                plasmaChart.data.datasets[avgIdx].data = treatment.avg !== null
+                    ? timeData.map(() => treatment.avg)
+                    : [];
+            } else {
+                plasmaChart.data.datasets[dataIdx].data = [];
+                plasmaChart.data.datasets[avgIdx].data = [];
+            }
         }
         
         plasmaChart.update();

@@ -178,8 +178,7 @@
             border-radius: 12px;
             padding: 24px;
             border: 1px solid #e0e0e0;
-            width: 800px;
-            flex-shrink: 0;
+            flex: 1;
         }
 
         .treatment-box h2 {
@@ -351,6 +350,7 @@
             flex: 1;
         }
 
+
         .results-box h2 {
             font-size: 20px;
             font-weight: 600;
@@ -433,7 +433,7 @@
                             </div>
                             
                             <div class="input-group">
-                                <label for="pna">PNA (g/kg/day)</label>
+                                <label for="pna">Entry PNA (g/kg/day)</label>
                                 <input type="number" id="pna" name="pna" min="0" step="any">
                             </div>
                         </div>
@@ -462,7 +462,7 @@
                                 <label for="mtac">Transport Category, default is High Average</label>
                                 <select id="mtac" name="mtac">
                                     <option value="">Select...</option>
-                                    <option value="27.2">High, MTAC (mL/min)=27.2</option>
+                                    <option value="27.7">High, MTAC (mL/min)=27.7</option>
                                     <option value="23.1" selected>High Average, MTAC (mL/min)=23.1</option>
                                     <option value="18.4">Low Average, MTAC (mL/min)=18.4</option>
                                     <option value="15.9">Low, MTAC (mL/min)=15.9</option>
@@ -475,11 +475,11 @@
                 <div class="graph-box">
                     <h2>Graph</h2>
                     
-                    <div id="customLegend" style="display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <canvas id="plasmaGraph"></canvas>
+                    
+                    <div id="customLegend" style="display: flex; gap: 20px; margin-top: 15px; flex-wrap: wrap;">
                         <!-- Custom legend with checkboxes will be generated here -->
                     </div>
-                    
-                    <canvas id="plasmaGraph"></canvas>
                 </div>
             </div>
             
@@ -489,80 +489,6 @@
                     
                     <div class="prescriptions-container">
                         <div class="prescription-column">
-                            <h3>Prescription 1</h3>
-                            
-                            <div class="days-selector">
-                                <div class="day-item">
-                                    <label for="p1-mon">M</label>
-                                    <input type="checkbox" id="p1-mon" name="p1-mon" checked>
-                                </div>
-                                <div class="day-item">
-                                    <label for="p1-tue">T</label>
-                                    <input type="checkbox" id="p1-tue" name="p1-tue" checked>
-                                </div>
-                                <div class="day-item">
-                                    <label for="p1-wed">W</label>
-                                    <input type="checkbox" id="p1-wed" name="p1-wed" checked>
-                                </div>
-                                <div class="day-item">
-                                    <label for="p1-thu">T</label>
-                                    <input type="checkbox" id="p1-thu" name="p1-thu" checked>
-                                </div>
-                                <div class="day-item">
-                                    <label for="p1-fri">F</label>
-                                    <input type="checkbox" id="p1-fri" name="p1-fri" checked>
-                                </div>
-                                <div class="day-item">
-                                    <label for="p1-sat">S</label>
-                                    <input type="checkbox" id="p1-sat" name="p1-sat" checked>
-                                </div>
-                                <div class="day-item">
-                                    <label for="p1-sun">S</label>
-                                    <input type="checkbox" id="p1-sun" name="p1-sun" checked>
-                                </div>
-                            </div>
-                            
-                            <table class="prescription-table">
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th>Number</th>
-                                        <th>Volume (L)</th>
-                                        <th>Time (min)</th>
-                                        <th>UF (mL)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Repeated Exchanges (cycler or CAPD)</td>
-                                        <td><input type="number" id="p1-rep-number" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-rep-volume" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-rep-time" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-rep-uf" min="0" step="any"></td>
-                                    </tr>
-                                    <tr>
-                                        <td>Additional Exchange #1 (if used)</td>
-                                        <td><input type="number" id="p1-add1-number" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-add1-volume" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-add1-time" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-add1-uf" min="0" step="any"></td>
-                                    </tr>
-                                    <tr>
-                                        <td>Additional Exchange #2 (if used)</td>
-                                        <td><input type="number" id="p1-add2-number" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-add2-volume" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-add2-time" min="0" step="any"></td>
-                                        <td><input type="number" id="p1-add2-uf" min="0" step="any"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            
-                            <button class="run-button" id="run-treatment-1">Run Treatment 1</button>
-                        </div>
-                        
-                        <div class="prescription-column">
-                            <h3>Prescription 2</h3>
-                            
                             <div class="days-selector">
                                 <div class="day-item">
                                     <label for="p2-mon">M</label>
@@ -600,27 +526,27 @@
                                         <th></th>
                                         <th>Number</th>
                                         <th>Volume (L)</th>
-                                        <th>Time (min)</th>
+                                        <th>Total Time (hr)</th>
                                         <th>UF (mL)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>Automated Drain</td>
+                                        <td>Repeated</td>
                                         <td><input type="number" id="p2-rep-number" min="0" step="any"></td>
                                         <td><input type="number" id="p2-rep-volume" min="0" step="any"></td>
                                         <td><input type="number" id="p2-rep-time" min="0" step="any"></td>
                                         <td><input type="number" id="p2-rep-uf" min="0" step="any"></td>
                                     </tr>
                                     <tr>
-                                        <td>Manual Drain</td>
+                                        <td>Additional #1</td>
                                         <td><input type="number" id="p2-add1-number" min="0" step="any"></td>
                                         <td><input type="number" id="p2-add1-volume" min="0" step="any"></td>
                                         <td><input type="number" id="p2-add1-time" min="0" step="any"></td>
                                         <td><input type="number" id="p2-add1-uf" min="0" step="any"></td>
                                     </tr>
                                     <tr>
-                                        <td>Additional Manual Drain</td>
+                                        <td>Additional #2</td>
                                         <td><input type="number" id="p2-add2-number" min="0" step="any"></td>
                                         <td><input type="number" id="p2-add2-volume" min="0" step="any"></td>
                                         <td><input type="number" id="p2-add2-time" min="0" step="any"></td>
@@ -629,7 +555,7 @@
                                 </tbody>
                             </table>
                             
-                            <button class="run-button" id="run-treatment-2">Run Treatment 2</button>
+                            <button class="run-button" id="run-treatment-2">Add Treatment</button>
                         </div>
                     </div>
                 </div>
@@ -641,8 +567,10 @@
                         <thead>
                             <tr>
                                 <th></th>
-                                <th>Treatment 1</th>
+                                <th>Treatment 1 (Most Recent)</th>
                                 <th>Treatment 2</th>
+                                <th>Treatment 3</th>
+                                <th>Treatment 4 (4th Most Recent)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -650,26 +578,29 @@
                                 <td>stdKt/V</td>
                                 <td id="ktv-tx1">-</td>
                                 <td id="ktv-tx2">-</td>
+                                <td id="ktv-tx3">-</td>
+                                <td id="ktv-tx4">-</td>
                             </tr>
                             <tr>
                                 <td>APC (mg/L)</td>
                                 <td id="apc-tx1">-</td>
                                 <td id="apc-tx2">-</td>
+                                <td id="apc-tx3">-</td>
+                                <td id="apc-tx4">-</td>
                             </tr>
                             <tr>
                                 <td>TAC (mg/L)</td>
                                 <td id="tac-tx1">-</td>
                                 <td id="tac-tx2">-</td>
+                                <td id="tac-tx3">-</td>
+                                <td id="tac-tx4">-</td>
                             </tr>
                             <tr>
                                 <td>Kurea (mL/min)</td>
                                 <td id="kurea-tx1">-</td>
                                 <td id="kurea-tx2">-</td>
-                            </tr>
-                            <tr>
-                                <td></td>
-                                <td></td>
-                                <td></td>
+                                <td id="kurea-tx3">-</td>
+                                <td id="kurea-tx4">-</td>
                             </tr>
                         </tbody>
                     </table>

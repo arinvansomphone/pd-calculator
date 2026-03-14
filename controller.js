@@ -27,18 +27,24 @@ function calculateVolume() {
     }
 }
 
-// Calculate urea generation rate from PNA
-// PNA is in g/kg/day, so multiply by weight to get total generation
+// Calculate urea generation rate (mg/min) from Entry PNA (g/kg/day)
+// PNA (g/day) = nPNA (g/kg/day) × weight (kg)
+// ureaN (g/day) = (PNA - 19) / 7.62
+// urea (mg/min) = ureaN (g/day) × (60/28) × 1000/1440  [60 g urea per 28 g N]
 function computeGeneration(pna, weight) {
     if (!pna || !weight) return '';
-    return pna * weight * 0.154;
+    const pnaGperDay = pna * weight;
+    const ureaNGperDay = Math.max(0, (pnaGperDay - 19) / 7.62);
+    const ureaGperDay = ureaNGperDay * (60 / 28);
+    const ureaMgPerMin = ureaGperDay * 1000 / 1440;
+    return ureaMgPerMin;
 }
 
-// Store treatment results
+// Store treatment results - treatment2 is most recent (for graph); treatmentHistory holds up to 4
 const treatments = {
-    treatment1: null,
-    treatment2: null
+    treatment2: null  // Most recent, used by graph
 };
+const treatmentHistory = [];  // [{results, inputs}, ...] - index 0 is most recent, max 4
 
 // Gather form inputs for a specific prescription
 function gatherPrescriptionInputs(prescriptionNum) {
@@ -78,7 +84,7 @@ function gatherPrescriptionInputs(prescriptionNum) {
     if (repNumber > 0 && repVolume > 0 && repTime > 0) {
         for (let i = 0; i < repNumber; i++) {
             volumeData.push(repVolume);
-            timeData.push(repTime / 60); // Convert minutes to hours
+            timeData.push(repTime); // Time in hours
             ufData.push(repUF);
         }
     }
@@ -92,7 +98,7 @@ function gatherPrescriptionInputs(prescriptionNum) {
     if (add1Number > 0 && add1Volume > 0 && add1Time > 0) {
         for (let i = 0; i < add1Number; i++) {
             volumeData.push(add1Volume);
-            timeData.push(add1Time / 60); // Convert minutes to hours
+            timeData.push(add1Time); // Time in hours
             ufData.push(add1UF);
         }
     }
@@ -106,7 +112,7 @@ function gatherPrescriptionInputs(prescriptionNum) {
     if (add2Number > 0 && add2Volume > 0 && add2Time > 0) {
         for (let i = 0; i < add2Number; i++) {
             volumeData.push(add2Volume);
-            timeData.push(add2Time / 60); // Convert minutes to hours
+            timeData.push(add2Time); // Time in hours
             ufData.push(add2UF);
         }
     }
@@ -379,65 +385,78 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     };
 }
 
-// Update graph with treatment data
+// Update graph with treatment data from treatmentHistory (up to 4 most recent)
 function updateGraphWithTreatment(treatmentNum, results) {
     const timeData = [];
-    const concentrationData = [];
-    
-    // Sample every 10 minutes to reduce data points for better performance
-    for (let i = 0; i < results.plasmaConcentration.length; i += 10) {
+    for (let i = 0; i < (treatmentHistory[0]?.results.plasmaConcentration.length || 0); i += 10) {
         timeData.push(i);
-        concentrationData.push(results.plasmaConcentration[i]);
     }
     
-    // Get both treatment data
-    const treatment1Data = treatments.treatment1 ? 
-        treatments.treatment1.plasmaConcentration.filter((_, i) => i % 10 === 0) : [];
-    const treatment2Data = treatments.treatment2 ? 
-        treatments.treatment2.plasmaConcentration.filter((_, i) => i % 10 === 0) : [];
+    const treatmentsData = [];
+    for (let i = 0; i < 4; i++) {
+        const entry = treatmentHistory[i];
+        if (!entry) {
+            treatmentsData.push({ data: [], avg: null });
+            continue;
+        }
+        const arr = entry.results.plasmaConcentration.filter((_, j) => j % 10 === 0);
+        const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
+        treatmentsData.push({ data: arr, avg });
+    }
     
-    // Calculate averages
-    const treatment1Avg = treatment1Data.length > 0 ?
-        treatment1Data.reduce((sum, val) => sum + val, 0) / treatment1Data.length : null;
-    const treatment2Avg = treatment2Data.length > 0 ?
-        treatment2Data.reduce((sum, val) => sum + val, 0) / treatment2Data.length : null;
-    
-    // Update the graph from graph.js
     if (typeof updateGraph === 'function') {
-        updateGraph(timeData, treatment1Data, treatment2Data, treatment1Avg, treatment2Avg);
+        updateGraph(timeData, treatmentsData);
     }
 }
 
-// Update results table
-function updateResults(treatmentNum, results, inputs) {
-    const { plasmaConcentration, peakConcentration, gen, plasmaToDialysate, excretion } = results;
-    const { kru, volume } = inputs;
+// Update results table - populates all 4 columns from treatmentHistory
+function updateAllResults() {
+    const metrics = ['ktv', 'apc', 'tac', 'kurea'];
     
-    // Calculate averages
-    const sumPlasma = plasmaConcentration.reduce((sum, val) => sum + val, 0);
-    const avgPlasma = sumPlasma / plasmaConcentration.length;
+    for (let col = 1; col <= 4; col++) {
+        const entry = treatmentHistory[col - 1];
+        const suffix = `tx${col}`;
+        
+        if (!entry) {
+            metrics.forEach(m => {
+                const el = document.getElementById(`${m}-${suffix}`);
+                if (el) el.textContent = '-';
+            });
+            continue;
+        }
+        
+        const { results, inputs } = entry;
+        const { plasmaConcentration, peakConcentration, plasmaToDialysate, excretion } = results;
+        const { kru, volume } = inputs;
+        
+        const sumPlasma = plasmaConcentration.reduce((sum, val) => sum + val, 0);
+        const avgPlasma = sumPlasma / plasmaConcentration.length;
+        const sumPeak = peakConcentration.reduce((sum, val) => sum + val, 0);
+        const avgPeak = sumPeak / peakConcentration.length;
+        const sumDialysate = plasmaToDialysate.reduce((sum, val) => sum + val, 0);
+        const sumExcretion = excretion.reduce((sum, val) => sum + val, 0);
+        const ktv = (sumDialysate + sumExcretion) / sumPlasma * plasmaConcentration.length / volume * 0.1;
+        
+        document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
+        document.getElementById(`apc-${suffix}`).textContent = avgPlasma.toFixed(0);
+        document.getElementById(`tac-${suffix}`).textContent = avgPeak.toFixed(0);
+        document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
+    }
     
-    const sumPeak = peakConcentration.reduce((sum, val) => sum + val, 0);
-    const avgPeak = sumPeak / peakConcentration.length;
-    
-    const sumDialysate = plasmaToDialysate.reduce((sum, val) => sum + val, 0);
-    const sumExcretion = excretion.reduce((sum, val) => sum + val, 0);
-    
-    // Calculate Kt/V
-    const ktv = (sumDialysate + sumExcretion) / sumPlasma * plasmaConcentration.length / volume * 0.1;
-    
-    // Update table cells
-    const suffix = `tx${treatmentNum}`;
-    document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-    document.getElementById(`apc-${suffix}`).textContent = avgPlasma.toFixed(2);
-    document.getElementById(`tac-${suffix}`).textContent = avgPeak.toFixed(2);
-    document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
-    
-    console.log(`Treatment ${treatmentNum} Results:`);
-    console.log(`stdKt/V: ${ktv.toFixed(2)}`);
-    console.log(`APC (avg plasma conc): ${avgPlasma.toFixed(2)} mg/L`);
-    console.log(`TAC (time avg conc): ${avgPeak.toFixed(2)} mg/L`);
-    console.log(`Kurea: ${kru.toFixed(2)} mL/min`);
+    if (treatmentHistory.length > 0) {
+        const { results, inputs } = treatmentHistory[0];
+        const { plasmaConcentration, peakConcentration, plasmaToDialysate, excretion } = results;
+        const { kru, volume } = inputs;
+        const sumPlasma = plasmaConcentration.reduce((sum, val) => sum + val, 0);
+        const avgPlasma = sumPlasma / plasmaConcentration.length;
+        const sumPeak = peakConcentration.reduce((sum, val) => sum + val, 0);
+        const avgPeak = sumPeak / peakConcentration.length;
+        const sumDialysate = plasmaToDialysate.reduce((sum, val) => sum + val, 0);
+        const sumExcretion = excretion.reduce((sum, val) => sum + val, 0);
+        const ktv = (sumDialysate + sumExcretion) / sumPlasma * plasmaConcentration.length / volume * 0.1;
+        console.log('Treatment 1 (Most Recent) Results:');
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${avgPlasma.toFixed(2)}, TAC: ${avgPeak.toFixed(2)}, Kurea: ${kru.toFixed(2)}`);
+    }
 }
 
 // Handle run treatment button clicks
@@ -466,13 +485,15 @@ function runTreatment(treatmentNum) {
             inputs.days
         );
         
-        treatments[`treatment${treatmentNum}`] = results;
+        treatments.treatment2 = results;
+        treatmentHistory.unshift({ results, inputs });
+        if (treatmentHistory.length > 4) treatmentHistory.pop();
         
-        // Update graph
+        // Update graph (shows most recent)
         updateGraphWithTreatment(treatmentNum, results);
         
-        // Update results table
-        updateResults(treatmentNum, results, inputs);
+        // Update results table (all 4 columns)
+        updateAllResults();
         
     } catch (error) {
         console.error(`Error running treatment ${treatmentNum}:`, error);
@@ -536,16 +557,9 @@ function validatePrescription(prescriptionNum) {
 
 // Update button states based on validation
 function updateButtonStates() {
-    const button1 = document.getElementById('run-treatment-1');
     const button2 = document.getElementById('run-treatment-2');
-    
-    // Both buttons are enabled only if BOTH prescriptions are valid
-    const prescription1Valid = validatePrescription(1);
     const prescription2Valid = validatePrescription(2);
-    const bothValid = prescription1Valid && prescription2Valid;
-    
-    button1.disabled = !bothValid;
-    button2.disabled = !bothValid;
+    button2.disabled = !prescription2Valid;
 }
 
 // Add event listeners to all inputs that affect volume calculation
@@ -565,8 +579,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Day checkboxes and prescription inputs for both treatments
-    [1, 2].forEach(num => {
+    // Day checkboxes and prescription inputs for treatment 2
+    [2].forEach(num => {
         const prefix = `p${num}`;
         
         // Day checkboxes
@@ -583,6 +597,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const input = document.getElementById(`${prefix}-${type}-${field}`);
                 if (input) {
                     input.addEventListener('input', updateButtonStates);
+                    if (field === 'uf') {
+                        input.addEventListener('change', () => {
+                            const val = parseFloat(input.value);
+                            if (input.value !== '' && val === 0) {
+                                alert('Warning: A UF of 0 mL means no fluid will be removed during this exchange. Please confirm this is intended.');
+                            }
+                        });
+                    }
+                    if (field === 'time') {
+                        input.addEventListener('change', () => {
+                            const repTime = parseFloat(document.getElementById(`${prefix}-rep-time`).value) || 0;
+                            const add1Time = parseFloat(document.getElementById(`${prefix}-add1-time`).value) || 0;
+                            const add2Time = parseFloat(document.getElementById(`${prefix}-add2-time`).value) || 0;
+                            const totalHours = repTime + add1Time + add2Time;
+                            if (totalHours > 24) {
+                                alert(`Warning: Total treatment time is ${totalHours.toFixed(1)} hours, which exceeds 24 hours. Please adjust the number of exchanges or dwell times.`);
+                            }
+                        });
+                    }
                 }
             });
         });
@@ -592,6 +625,5 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStates();
 });
 
-// Add event listeners for run treatment buttons
-document.getElementById('run-treatment-1').addEventListener('click', () => runTreatment(1));
+// Add event listener for run treatment button
 document.getElementById('run-treatment-2').addEventListener('click', () => runTreatment(2));
