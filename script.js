@@ -9,6 +9,8 @@ const savedInputs = {
     treatment2: null
   };
 
+const horizontalPunYAxisPlugin = { id: 'horizontalPunYAxis' };
+
 
 ['mtac', 'volume', 'gen'].forEach(id => {
   document.getElementById(id).addEventListener('input', e => {
@@ -852,8 +854,10 @@ function updateNumerical(treatment, plasmaConcentration, peakConcentration, gen,
     let ktvArray = new Array(7).fill(0);
 
     if (solute == "urea"){
-        ktv = (sumOfPlasmaDialysate + sumOfExcretion)/sumOfPlasmaConc * plasmaConcentration.length / volume * 0.1;
-        ktvArray = ktVTable(plasmaConcentration, plasmaToDialysate, volume, excretion);
+        var tacPlasma = avgPeak / 1.08;
+        var weeklyRemoval = sumOfPlasmaDialysate + sumOfExcretion;
+        ktv = tacPlasma > 0 ? (weeklyRemoval / 10080) / (tacPlasma / 100) : 0;
+        ktvArray = ktVTable(plasmaConcentration, plasmaToDialysate, excretion, tacPlasma);
     }
     document.getElementById(`ktv${suffix}`).innerText = ktv.toFixed(2);
     
@@ -871,11 +875,11 @@ function updateNumerical(treatment, plasmaConcentration, peakConcentration, gen,
 }
 
 
-function ktVTable(plasmaConcentration, plasmaToDialysate, volume, excretion) {
+function ktVTable(plasmaConcentration, plasmaToDialysate, excretion, tacPlasma) {
     const MIN_PER_DAY = 1440;
     const middayIdx = [9360, 7920, 6480, 5040, 3600, 2160, 720];
 
-    return middayIdx.map((mid, day) => {
+    return middayIdx.map((_, day) => {
         const start = day * MIN_PER_DAY;           // day block start
         const end   = start + MIN_PER_DAY;         // day block end (exclusive)
   
@@ -885,11 +889,8 @@ function ktVTable(plasmaConcentration, plasmaToDialysate, volume, excretion) {
           sumPlasmaRemoved += plasmaToDialysate[i] + excretion[i]|| 0 ;
         }
         
-        avgPlasmaRemoved = sumPlasmaRemoved/MIN_PER_DAY;
-        bloodPlasma = plasmaConcentration[mid] || 0;
-        ktv = avgPlasmaRemoved / bloodPlasma * plasmaToDialysate.length / volume * 0.1;
-
-        return ktv;
+        const avgRemovalPerMin = sumPlasmaRemoved / MIN_PER_DAY;
+        return tacPlasma > 0 ? avgRemovalPerMin / (tacPlasma / 100) : 0;
     });
 }
 
@@ -907,7 +908,7 @@ function redrawBothLines() {
       case "Plasma Concentration":
         array1 = treatments.treatment1?.plasmaConcentration;
         array2 = treatments.treatment2?.plasmaConcentration;
-        yLabel = "Plasma Concentration (mg/L)";
+        yLabel = "PUN (mg/L)";
         break;
       case "Volume of Distribution":
         array1 = treatments.treatment1?.volumeofDistribution;
@@ -967,6 +968,7 @@ function redrawBothLines() {
     if (existing) existing.destroy();
   
     const ctx = document.getElementById('chartCanvas').getContext('2d');
+    const useHorizontalPunLabel = selectedVar === "Plasma Concentration";
     new Chart(ctx, {
       type: 'line',
       data: { datasets },
@@ -980,7 +982,11 @@ function redrawBothLines() {
             ticks: { stepSize: 1440 }
           },
           y: {
-            title: { display: true, text: yLabel },
+            title: {
+              display: true,
+              text: yLabel,
+              rotation: 0
+            },
             min: zoomVal
           }
         },
@@ -991,7 +997,8 @@ function redrawBothLines() {
             }
           }
         }
-      }
+      },
+      plugins: []
     });
   }
 

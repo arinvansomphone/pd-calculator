@@ -1,6 +1,22 @@
 // Initialize the plasma concentration graph
 let plasmaChart = null;
 
+const horizontalYAxisLabelPlugin = {
+    id: 'horizontalYAxisLabel',
+    afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        const yScale = scales.y;
+        if (!chartArea || !yScale) return;
+        ctx.save();
+        ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('PUN (mg/L)', yScale.left - 4, (chartArea.top + chartArea.bottom) / 2);
+        ctx.restore();
+    }
+};
+
 const TREATMENT_COLORS = [
     'rgb(255, 99, 132)',   // Treatment 1 - red
     'rgb(75, 192, 192)',   // Treatment 2 - teal
@@ -13,6 +29,7 @@ const TREATMENT_LABELS = [
     'Treatment 3',
     'Treatment 4'
 ];
+
 
 function createCustomLegend() {
     const legendContainer = document.getElementById('customLegend');
@@ -88,6 +105,9 @@ function initializeGraph() {
         type: 'line',
         data: sampleData,
         options: {
+            layout: {
+                padding: { left: 80, right: 12, top: 6, bottom: 6 }
+            },
             responsive: true,
             maintainAspectRatio: true,
             aspectRatio: 2,
@@ -144,13 +164,7 @@ function initializeGraph() {
                 },
                 y: {
                     title: {
-                        display: true,
-                        text: 'Plasma Concentration (mg/L)',
-                        font: {
-                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
-                            size: 14,
-                            weight: 'bold'
-                        }
+                        display: false
                     },
                     ticks: {
                         font: {
@@ -164,7 +178,8 @@ function initializeGraph() {
                     }
                 }
             }
-        }
+        },
+        plugins: [horizontalYAxisLabelPlugin]
     });
 }
 

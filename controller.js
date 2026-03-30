@@ -78,13 +78,14 @@ function gatherPrescriptionInputs(prescriptionNum) {
     // Repeated exchanges
     const repNumber = parseFloat(document.getElementById(`${prefix}-rep-number`).value) || 0;
     const repVolume = parseFloat(document.getElementById(`${prefix}-rep-volume`).value) || 0;
-    const repTime = parseFloat(document.getElementById(`${prefix}-rep-time`).value) || 0;
+    const repTimeTotal = parseFloat(document.getElementById(`${prefix}-rep-time`).value) || 0;
     const repUF = parseFloat(document.getElementById(`${prefix}-rep-uf`).value) || 0;
     
-    if (repNumber > 0 && repVolume > 0 && repTime > 0) {
+    if (repNumber > 0 && repVolume > 0 && repTimeTotal > 0) {
+        const repTimePerExchange = repTimeTotal / repNumber;
         for (let i = 0; i < repNumber; i++) {
             volumeData.push(repVolume);
-            timeData.push(repTime); // Time in hours
+            timeData.push(repTimePerExchange); // Time in hours per exchange
             ufData.push(repUF);
         }
     }
@@ -92,13 +93,14 @@ function gatherPrescriptionInputs(prescriptionNum) {
     // Additional Exchange #1
     const add1Number = parseFloat(document.getElementById(`${prefix}-add1-number`).value) || 0;
     const add1Volume = parseFloat(document.getElementById(`${prefix}-add1-volume`).value) || 0;
-    const add1Time = parseFloat(document.getElementById(`${prefix}-add1-time`).value) || 0;
+    const add1TimeTotal = parseFloat(document.getElementById(`${prefix}-add1-time`).value) || 0;
     const add1UF = parseFloat(document.getElementById(`${prefix}-add1-uf`).value) || 0;
     
-    if (add1Number > 0 && add1Volume > 0 && add1Time > 0) {
+    if (add1Number > 0 && add1Volume > 0 && add1TimeTotal > 0) {
+        const add1TimePerExchange = add1TimeTotal / add1Number;
         for (let i = 0; i < add1Number; i++) {
             volumeData.push(add1Volume);
-            timeData.push(add1Time); // Time in hours
+            timeData.push(add1TimePerExchange); // Time in hours per exchange
             ufData.push(add1UF);
         }
     }
@@ -106,13 +108,14 @@ function gatherPrescriptionInputs(prescriptionNum) {
     // Additional Exchange #2
     const add2Number = parseFloat(document.getElementById(`${prefix}-add2-number`).value) || 0;
     const add2Volume = parseFloat(document.getElementById(`${prefix}-add2-volume`).value) || 0;
-    const add2Time = parseFloat(document.getElementById(`${prefix}-add2-time`).value) || 0;
+    const add2TimeTotal = parseFloat(document.getElementById(`${prefix}-add2-time`).value) || 0;
     const add2UF = parseFloat(document.getElementById(`${prefix}-add2-uf`).value) || 0;
     
-    if (add2Number > 0 && add2Volume > 0 && add2Time > 0) {
+    if (add2Number > 0 && add2Volume > 0 && add2TimeTotal > 0) {
+        const add2TimePerExchange = add2TimeTotal / add2Number;
         for (let i = 0; i < add2Number; i++) {
             volumeData.push(add2Volume);
-            timeData.push(add2Time); // Time in hours
+            timeData.push(add2TimePerExchange); // Time in hours per exchange
             ufData.push(add2UF);
         }
     }
@@ -148,7 +151,7 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     
     // Initialize arrays for minute-by-minute tracking (7 days * 24 hours * 60 minutes)
     let plasmaConcentration = new Array(7 * 24 * 60).fill(0);
-    let peakConcentration = new Array(numExchange * numOfTreatment).fill(0);
+    let peakConcentration = new Array(numOfTreatment).fill(0);
     let dialysateConcentration = new Array(7 * 24 * 60).fill(0);
     let volumeofDistribution = new Array(7 * 24 * 60).fill(0);
     let volDialysate = new Array(7 * 24 * 60).fill(0);
@@ -160,10 +163,10 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     let netMovtIn = new Array(7 * 24 * 60).fill(0);
     let excretion = new Array(7 * 24 * 60).fill(0);
     
-    let initial_equilibrium_tolerance = 0.001;
+    let initial_equilibrium_tolerance = 0.1; // mg/L
     let initial_steady_state = 0;
-    let initial_Concentration = 1;
-    let previousWeekProfile = null; // Track previous week's entire profile
+    let initial_Concentration = 200; // mg/L - physiologically reasonable starting estimate
+    let previousWeekEnd = null;
     let t = 0;
     let peak_index = 0;
     
@@ -207,8 +210,11 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
                         excretion[t] = plasmaConcentration[t] * kru / 100;
                         netMovtIn[t] = gen - excretion[t] - plasmaToDialysate[t];
                         
-                        peakConcentration[peak_index] = plasmaConcentration[t];
-                        peak_index += 1;
+                        // Record peak at start of first exchange of the day
+                        if (exchange === 0) {
+                            peakConcentration[peak_index] = plasmaConcentration[t];
+                            peak_index += 1;
+                        }
                         t += 1;
                     } else {
                         // Reset from dead time
@@ -224,8 +230,11 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
                         excretion[t] = plasmaConcentration[t] * kru / 100;
                         netMovtIn[t] = gen - excretion[t] - plasmaToDialysate[t];
                         
-                        peakConcentration[peak_index] = plasmaConcentration[t - 1];
-                        peak_index += 1;
+                        // Record peak at start of first exchange of the day
+                        if (exchange === 0) {
+                            peakConcentration[peak_index] = plasmaConcentration[t];
+                            peak_index += 1;
+                        }
                         t += 1;
                     }
                     
@@ -298,74 +307,19 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
             }
         }
         
-        // Check for steady state - compare entire week profile to previous week
-        const currentWeekStartConcentration = plasmaConcentration[0];
-        const currentWeekEndConcentration = plasmaConcentration[t - 1];
-        
-        // Debug: log actual t value
-        if (iterCount <= 5) {
-            console.log(`Iteration ${iterCount}: t=${t}, expected=10080, Start=${currentWeekStartConcentration.toFixed(2)}, End=${currentWeekEndConcentration.toFixed(2)}`);
-        }
-        
-        if (previousWeekProfile !== null) {
-            // Check key time points throughout the week (every day at midnight)
-            let maxDifference = 0;
-            let maxRelativeDiff = 0;
-            const checkPoints = [];
-            
-            for (let day = 0; day < 7; day++) {
-                const timePoint = day * 24 * 60; // Midnight of each day
-                if (timePoint < t && timePoint < previousWeekProfile.length) {
-                    const currentValue = plasmaConcentration[timePoint];
-                    const previousValue = previousWeekProfile[timePoint];
-                    
-                    // Sanity check
-                    if (isNaN(currentValue) || isNaN(previousValue)) {
-                        console.error(`NaN detected at day ${day}: current=${currentValue}, previous=${previousValue}`);
-                        continue;
-                    }
-                    
-                    const diff = Math.abs(currentValue - previousValue);
-                    const relDiff = diff / previousValue;
-                    
-                    checkPoints.push({
-                        day: daysOfWeek[day],
-                        current: currentValue,
-                        previous: previousValue,
-                        diff: relDiff
-                    });
-                    
-                    if (relDiff > maxRelativeDiff) {
-                        maxRelativeDiff = relDiff;
-                        maxDifference = diff;
-                    }
-                }
-            }
-            
-            if (maxRelativeDiff < initial_equilibrium_tolerance) {
+        // Steady state: end-of-week concentration has stopped changing between iterations
+        const weekEnd = plasmaConcentration[t - 1];
+
+        if (previousWeekEnd !== null) {
+            const absDiff = Math.abs(weekEnd - previousWeekEnd);
+            if (absDiff < initial_equilibrium_tolerance) {
                 initial_steady_state = 1;
-                console.log(`Steady state reached after ${iterCount} iterations`);
-                console.log(`Week start: ${currentWeekStartConcentration.toFixed(2)} mg/L, Week end: ${currentWeekEndConcentration.toFixed(2)} mg/L`);
-                console.log(`Max difference across all checkpoints: ${maxDifference.toFixed(4)} mg/L (${(maxRelativeDiff * 100).toFixed(4)}%)`);
-                checkPoints.forEach(cp => {
-                    console.log(`  ${cp.day}: ${cp.current.toFixed(2)} vs ${cp.previous.toFixed(2)} (${(cp.diff * 100).toFixed(4)}%)`);
-                });
-            } else {
-                if (iterCount % 50 === 0 || iterCount <= 10) {
-                    console.log(`Iteration ${iterCount}: Start=${currentWeekStartConcentration.toFixed(2)}, End=${currentWeekEndConcentration.toFixed(2)}, MaxDiff=${(maxRelativeDiff * 100).toFixed(3)}%`);
-                    if (iterCount <= 10) {
-                        // Show first few checkpoints for debugging
-                        checkPoints.slice(0, 3).forEach(cp => {
-                            console.log(`  ${cp.day}: ${cp.current.toFixed(2)} vs ${cp.previous.toFixed(2)} (${(cp.diff * 100).toFixed(3)}%)`);
-                        });
-                    }
-                }
+                console.log(`Steady state reached after ${iterCount} iterations: weekEnd=${weekEnd.toFixed(4)}, diff=${absDiff.toFixed(4)} mg/L`);
             }
         }
-        
-        // Store current week's profile and update for next iteration
-        previousWeekProfile = plasmaConcentration.slice(0, t); // Copy current week
-        initial_Concentration = currentWeekEndConcentration;
+
+        previousWeekEnd = weekEnd;
+        initial_Concentration = weekEnd;
     }
     
     if (iterCount >= max_iter) {
@@ -399,7 +353,9 @@ function updateGraphWithTreatment(treatmentNum, results) {
             treatmentsData.push({ data: [], avg: null });
             continue;
         }
-        const arr = entry.results.plasmaConcentration.filter((_, j) => j % 10 === 0);
+        const arr = entry.results.plasmaConcentration
+            .filter((_, j) => j % 10 === 0)
+            .map(val => val / 1.08);
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
         treatmentsData.push({ data: arr, avg });
     }
@@ -432,14 +388,17 @@ function updateAllResults() {
         const sumPlasma = plasmaConcentration.reduce((sum, val) => sum + val, 0);
         const avgPlasma = sumPlasma / plasmaConcentration.length;
         const sumPeak = peakConcentration.reduce((sum, val) => sum + val, 0);
-        const avgPeak = sumPeak / peakConcentration.length;
+        const avgPeak = peakConcentration.length > 0 ? sumPeak / peakConcentration.length : 0;
         const sumDialysate = plasmaToDialysate.reduce((sum, val) => sum + val, 0);
         const sumExcretion = excretion.reduce((sum, val) => sum + val, 0);
-        const ktv = (sumDialysate + sumExcretion) / sumPlasma * plasmaConcentration.length / volume * 0.1;
+        const tacPlasma = avgPlasma / 1.08;
+        const apcPlasma = avgPeak / 1.08;
+        const weeklyRemoval = sumDialysate + sumExcretion;
+        const ktv = tacPlasma > 0 ? (weeklyRemoval / 10080) / (tacPlasma / 100) : 0;
         
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-        document.getElementById(`apc-${suffix}`).textContent = avgPlasma.toFixed(0);
-        document.getElementById(`tac-${suffix}`).textContent = avgPeak.toFixed(0);
+        document.getElementById(`apc-${suffix}`).textContent = apcPlasma.toFixed(0);
+        document.getElementById(`tac-${suffix}`).textContent = tacPlasma.toFixed(0);
         document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
     }
     
@@ -450,12 +409,15 @@ function updateAllResults() {
         const sumPlasma = plasmaConcentration.reduce((sum, val) => sum + val, 0);
         const avgPlasma = sumPlasma / plasmaConcentration.length;
         const sumPeak = peakConcentration.reduce((sum, val) => sum + val, 0);
-        const avgPeak = sumPeak / peakConcentration.length;
+        const avgPeak = peakConcentration.length > 0 ? sumPeak / peakConcentration.length : 0;
         const sumDialysate = plasmaToDialysate.reduce((sum, val) => sum + val, 0);
         const sumExcretion = excretion.reduce((sum, val) => sum + val, 0);
-        const ktv = (sumDialysate + sumExcretion) / sumPlasma * plasmaConcentration.length / volume * 0.1;
+        const tacPlasma = avgPlasma / 1.08;
+        const apcPlasma = avgPeak / 1.08;
+        const weeklyRemoval = sumDialysate + sumExcretion;
+        const ktv = tacPlasma > 0 ? (weeklyRemoval / 10080) / (tacPlasma / 100) : 0;
         console.log('Treatment 1 (Most Recent) Results:');
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${avgPlasma.toFixed(2)}, TAC: ${avgPeak.toFixed(2)}, Kurea: ${kru.toFixed(2)}`);
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${apcPlasma.toFixed(2)}, TAC: ${tacPlasma.toFixed(2)}, Kurea: ${kru.toFixed(2)}`);
     }
 }
 
