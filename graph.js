@@ -12,7 +12,7 @@ const horizontalYAxisLabelPlugin = {
         ctx.fillStyle = '#666';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        ctx.fillText('PUN (mg/L)', yScale.left - 4, (chartArea.top + chartArea.bottom) / 2);
+        ctx.fillText('PUN (mg/dL)', yScale.left - 4, (chartArea.top + chartArea.bottom) / 2);
         ctx.restore();
     }
 };
@@ -106,7 +106,7 @@ function initializeGraph() {
         data: sampleData,
         options: {
             layout: {
-                padding: { left: 80, right: 12, top: 6, bottom: 6 }
+                padding: { left: 95, right: 12, top: 6, bottom: 6 }
             },
             responsive: true,
             maintainAspectRatio: true,

@@ -27,13 +27,15 @@ function calculateVolume() {
     }
 }
 
-// Calculate urea nitrogen (BUN) generation rate (mg BUN/min) from nPNA (g/kg/day)
-// G (mg BUN/min) = nPNA (g/kg/day) × weight (kg) × 1000 / (12 × 1440)
-// Factor of 12 = 6.25 (g protein/g N) × ~1.92 accounts for the fraction of
-// dietary nitrogen that becomes urea nitrogen (matched to reference Excel model)
+// Calculate urea nitrogen generation rate (mg urea-N/min) from nPNA using Borah formula:
+// PNA (g/day) = nPNA (g/kg/day) × weight (kg)
+// ureaN (g/day) = (PNA - 19) / 7.62
+// ureaN (mg/min) = ureaN (g/day) × 1000 / 1440
 function computeGeneration(pna, weight) {
     if (!pna || !weight) return '';
-    return pna * weight * 1000 / (12 * 1440); // mg BUN/min
+    const pnaGperDay = pna * weight;                          // g protein/day
+    const ureaNGperDay = Math.max(0, (pnaGperDay - 19) / 7.62); // g urea-N/day
+    return ureaNGperDay * 1000 / 1440;                        // mg urea-N/min
 }
 
 // Store treatment results - treatment2 is most recent (for graph); treatmentHistory holds up to 4
@@ -174,7 +176,7 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     while (steady === 0 && iterCount++ < max_iter) {
         t = 0;
         peak_index = 0;
-        prevDialysateConc_mgL = 0; // reset each iteration (week restarts)
+        // prevDialysateConc_mgL carries over from previous iteration (continuous wrap-around)
 
         for (let day = 0; day < 7; day++) {
             if (days.includes(daysOfWeek[day])) {
@@ -333,7 +335,8 @@ function updateGraphWithTreatment(treatmentNum, results) {
             continue;
         }
         const arr = entry.results.plasmaConcentration
-            .filter((_, j) => j % 10 === 0);
+            .filter((_, j) => j % 10 === 0)
+            .map(v => v / 10); // mg/L → mg/dL
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
         treatmentsData.push({ data: arr, avg });
     }
@@ -377,8 +380,8 @@ function updateAllResults() {
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-        document.getElementById(`apc-${suffix}`).textContent = apc.toFixed(0);
-        document.getElementById(`tac-${suffix}`).textContent = tac.toFixed(0);
+        document.getElementById(`apc-${suffix}`).textContent = (apc / 10).toFixed(1);
+        document.getElementById(`tac-${suffix}`).textContent = (tac / 10).toFixed(1);
         document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
     }
 
@@ -393,7 +396,7 @@ function updateAllResults() {
                             + excretion.reduce((s, v) => s + v, 0);
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${apc.toFixed(2)}, TAC: ${tac.toFixed(2)}, Kurea: ${kru.toFixed(2)}`);
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10).toFixed(2)} mg/dL, TAC: ${(tac/10).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
     }
 }
 
