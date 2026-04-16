@@ -139,8 +139,8 @@ function gatherPrescriptionInputs(prescriptionNum) {
 // Main PD Calculator function
 // Unit system: concentrations in mg/L, volumes in mL, fluxes in mg/min, VoD in mL
 function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days) {
-    // Convert whole plasma clearances to plasma water clearances (÷1.08)
-    kru = kru / 1.08;
+    // Convert whole plasma clearances to plasma water clearances (× 0.93)
+    kru = kru * 0.93;
 
     const V_mL = volume * 1000;                          // L → mL
     const fillVolume = volumeData.map(v => v * 1000);    // L → mL per exchange
@@ -336,7 +336,7 @@ function updateGraphWithTreatment(treatmentNum, results) {
         }
         const arr = entry.results.plasmaConcentration
             .filter((_, j) => j % 10 === 0)
-            .map(v => v / 10); // mg/L → mg/dL
+            .map(v => v / 10 / 0.93); // mg/L plasma water → mg/dL whole plasma
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
         treatmentsData.push({ data: arr, avg });
     }
