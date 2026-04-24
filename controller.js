@@ -139,8 +139,8 @@ function gatherPrescriptionInputs(prescriptionNum) {
 // Main PD Calculator function
 // Unit system: concentrations in mg/L, volumes in mL, fluxes in mg/min, VoD in mL
 function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days) {
-    // Convert whole plasma clearances to plasma water clearances (× 0.93)
-    kru = kru * 0.93;
+    // Convert whole plasma clearances to plasma water clearances (÷ 0.93)
+    kru = kru / 0.93;
 
     const V_mL = volume * 1000;                          // L → mL
     const fillVolume = volumeData.map(v => v * 1000);    // L → mL per exchange
@@ -380,8 +380,8 @@ function updateAllResults() {
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-        document.getElementById(`apc-${suffix}`).textContent = (apc / 10).toFixed(1);
-        document.getElementById(`tac-${suffix}`).textContent = (tac / 10).toFixed(1);
+        document.getElementById(`apc-${suffix}`).textContent = (apc / 10 / 0.93).toFixed(1);
+        document.getElementById(`tac-${suffix}`).textContent = (tac / 10 / 0.93).toFixed(1);
         document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
     }
 
@@ -396,7 +396,7 @@ function updateAllResults() {
                             + excretion.reduce((s, v) => s + v, 0);
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10).toFixed(2)} mg/dL, TAC: ${(tac/10).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10/0.93).toFixed(2)} mg/dL, TAC: ${(tac/10/0.93).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
     }
 }
 
@@ -572,5 +572,44 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStates();
 });
 
+// Reset: clear graph, prescription inputs, and numeric outputs — preserve patient data
+function resetAll() {
+    // Clear treatment history and graph data
+    treatmentHistory.length = 0;
+    treatments.treatment2 = null;
+
+    // Reset graph to empty state
+    if (typeof updateGraph === 'function') {
+        updateGraph([], [{data:[], avg:null},{data:[], avg:null},{data:[], avg:null},{data:[], avg:null}]);
+    }
+
+    // Reset numeric results table
+    ['ktv', 'apc', 'tac', 'kurea'].forEach(metric => {
+        for (let col = 1; col <= 4; col++) {
+            const el = document.getElementById(`${metric}-tx${col}`);
+            if (el) el.textContent = '-';
+        }
+    });
+
+    // Reset prescription inputs (exchange table)
+    ['rep', 'add1', 'add2'].forEach(type => {
+        ['number', 'volume', 'time', 'uf'].forEach(field => {
+            const input = document.getElementById(`p2-${type}-${field}`);
+            if (input) input.value = '';
+        });
+    });
+
+    // Reset day checkboxes back to all checked
+    ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
+        const checkbox = document.getElementById(`p2-${day}`);
+        if (checkbox) checkbox.checked = true;
+    });
+
+    updateButtonStates();
+}
+
 // Add event listener for run treatment button
 document.getElementById('run-treatment-2').addEventListener('click', () => runTreatment(2));
+
+// Add event listener for reset button
+document.getElementById('reset-all').addEventListener('click', resetAll);
