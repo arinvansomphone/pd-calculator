@@ -139,8 +139,8 @@ function gatherPrescriptionInputs(prescriptionNum) {
 // Main PD Calculator function
 // Unit system: concentrations in mg/L, volumes in mL, fluxes in mg/min, VoD in mL
 function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days) {
-    // Convert whole plasma clearances to plasma water clearances (÷ 0.93)
-    kru = kru / 0.93;
+    // Convert whole plasma clearances to plasma water clearances (× 0.93)
+    kru = kru * 0.93;
 
     const V_mL = volume * 1000;                          // L → mL
     const fillVolume = volumeData.map(v => v * 1000);    // L → mL per exchange
@@ -336,7 +336,7 @@ function updateGraphWithTreatment(treatmentNum, results) {
         }
         const arr = entry.results.plasmaConcentration
             .filter((_, j) => j % 10 === 0)
-            .map(v => v / 10 / 0.93); // mg/L plasma water → mg/dL whole plasma
+            .map(v => v * 0.93 / 10); // mg/L plasma water → mg/dL whole plasma
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
         treatmentsData.push({ data: arr, avg });
     }
@@ -380,8 +380,8 @@ function updateAllResults() {
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-        document.getElementById(`apc-${suffix}`).textContent = (apc / 10 / 0.93).toFixed(1);
-        document.getElementById(`tac-${suffix}`).textContent = (tac / 10 / 0.93).toFixed(1);
+        document.getElementById(`apc-${suffix}`).textContent = (apc * 0.93 / 10).toFixed(1);
+        document.getElementById(`tac-${suffix}`).textContent = (tac * 0.93 / 10).toFixed(1);
         document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
     }
 
@@ -396,7 +396,7 @@ function updateAllResults() {
                             + excretion.reduce((s, v) => s + v, 0);
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10/0.93).toFixed(2)} mg/dL, TAC: ${(tac/10/0.93).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc*0.93/10).toFixed(2)} mg/dL, TAC: ${(tac*0.93/10).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
     }
 }
 
