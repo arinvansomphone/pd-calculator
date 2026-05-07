@@ -336,7 +336,7 @@ function updateGraphWithTreatment(treatmentNum, results) {
         }
         const arr = entry.results.plasmaConcentration
             .filter((_, j) => j % 10 === 0)
-            .map(v => v * 0.93 / 10); // mg/L plasma water → mg/dL whole plasma
+            .map(v => v / 10); // mg/L → mg/dL (plasma water)
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
         treatmentsData.push({ data: arr, avg });
     }
@@ -380,8 +380,8 @@ function updateAllResults() {
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-        document.getElementById(`apc-${suffix}`).textContent = (apc * 0.93 / 10).toFixed(1);
-        document.getElementById(`tac-${suffix}`).textContent = (tac * 0.93 / 10).toFixed(1);
+        document.getElementById(`apc-${suffix}`).textContent = (apc / 10).toFixed(1);
+        document.getElementById(`tac-${suffix}`).textContent = (tac / 10).toFixed(1);
         document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
     }
 
@@ -396,7 +396,7 @@ function updateAllResults() {
                             + excretion.reduce((s, v) => s + v, 0);
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc*0.93/10).toFixed(2)} mg/dL, TAC: ${(tac*0.93/10).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10).toFixed(2)} mg/dL, TAC: ${(tac/10).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
     }
 }
 
