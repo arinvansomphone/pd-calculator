@@ -336,7 +336,7 @@ function updateGraphWithTreatment(treatmentNum, results) {
         }
         const arr = entry.results.plasmaConcentration
             .filter((_, j) => j % 10 === 0)
-            .map(v => v / 10); // mg/L → mg/dL (plasma water)
+            .map(v => v / 10 * 0.93); // mg/L → mg/dL (plasma)
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
         treatmentsData.push({ data: arr, avg });
     }
@@ -377,11 +377,11 @@ function updateAllResults() {
         // stdKt/V = total clearance (mL) / V (mL)
         // total clearance (mL) = weeklyRemoval (mg) / TAC (mg/L) × 1000 (mL/L)
         const V_mL = volume * 1000;
-        const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
+        const ktv = tac > 0 ? (weeklyRemoval / (tac * 0.93) * 1000) / V_mL : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
-        document.getElementById(`apc-${suffix}`).textContent = (apc / 10).toFixed(1);
-        document.getElementById(`tac-${suffix}`).textContent = (tac / 10).toFixed(1);
+        document.getElementById(`apc-${suffix}`).textContent = (apc / 10 * 0.93).toFixed(1);
+        document.getElementById(`tac-${suffix}`).textContent = (tac / 10 * 0.93).toFixed(1);
         document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
     }
 
@@ -395,8 +395,8 @@ function updateAllResults() {
         const weeklyRemoval = plasmaToDialysate.reduce((s, v) => s + v, 0)
                             + excretion.reduce((s, v) => s + v, 0);
         const V_mL = volume * 1000;
-        const ktv = tac > 0 ? (weeklyRemoval / tac * 1000) / V_mL : 0;
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10).toFixed(2)} mg/dL, TAC: ${(tac/10).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
+        const ktv = tac > 0 ? (weeklyRemoval / (tac * 0.93) * 1000) / V_mL : 0;
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10*0.93).toFixed(2)} mg/dL, TAC: ${(tac/10*0.93).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
     }
 }
 
