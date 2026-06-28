@@ -138,11 +138,17 @@ function gatherPrescriptionInputs(prescriptionNum) {
 
 // Main PD Calculator function
 // Unit system: concentrations in mg/L, volumes in mL, fluxes in mg/min, VoD in mL
+// Body water volume is time-varying: UF drains it during the effective dwell of each
+// exchange, and a steady daily fluid-addition rate (the patient's intake) refills it,
+// so volume returns to the Watson baseline at the start of every day. No refill on
+// skipped days. Solute removal by dialysis is diffusion-only (no convective term).
 function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days) {
     // Convert whole plasma clearances to plasma water clearances (× 0.93)
     kru = kru * 0.93;
 
-    const V_mL = volume * 1000;                          // L → mL
+    const V_mL = volume * 1000;                          // L → mL (baseline body water)
+    const dailyUF = ufData.reduce((s, v) => s + v, 0);   // total UF per treatment day (mL)
+    const dayMinutes = 24 * 60;
     const fillVolume = volumeData.map(v => v * 1000);    // L → mL per exchange
     const numExchange = fillVolume.length;
     const numOfTreatment = days.length;
@@ -158,6 +164,8 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
     let fluxDial      = new Array(7 * 24 * 60).fill(0); // mg/min (plasma→dialysate)
     let excretion     = new Array(7 * 24 * 60).fill(0); // mg/min (renal)
     let netMovtIn     = new Array(7 * 24 * 60).fill(0); // mg/min (net body change)
+    let bodyVolume    = new Array(7 * 24 * 60).fill(0); // mL (time-varying body water)
+    let volRate       = new Array(7 * 24 * 60).fill(0); // mL/min (net body volume change)
     let peakConc      = new Array(numOfTreatment).fill(0); // mg/L, start of each treatment day
 
     const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -179,43 +187,45 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
         // prevDialysateConc_mgL carries over from previous iteration (continuous wrap-around)
 
         for (let day = 0; day < 7; day++) {
-            if (days.includes(daysOfWeek[day])) {
+            const isTreatmentDay = days.includes(daysOfWeek[day]);
+            // Steady daily fluid intake replacing the day's UF (mL/min); none on skipped days
+            const addRate = isTreatmentDay ? dailyUF / dayMinutes : 0;
+
+            if (isTreatmentDay) {
                 for (let exchange = 0; exchange < numExchange; exchange++) {
-                    // uf: mL/min UF rate during this exchange
+                    // uf: mL/min UF rate during the effective dwell; also drains body volume
                     const effectiveTime_min = (timeData[exchange] * 60) - deadTime_min;
                     const uf = ufData[exchange] / effectiveTime_min; // mL/min
-
-                    // Péclet factor (dimensionless): mtac mL/min, uf mL/min
-                    const beta = uf / mtac;
-                    const f = (1 / beta) - (1 / (Math.exp(beta) - 1));
 
                     const totalTime_min = timeData[exchange] * 60;
                     const initialTime = t;
 
                     // --- Start of exchange (fresh dialysate instilled) ---
+                    // Dialysate volume = residual + instilled + total UF for the exchange
+                    // (manuscript simplification: all UF present from the start of the dwell).
                     if (t === 0) {
                         // Very first minute: initialize from initial_Concentration
+                        bodyVolume[t]    = V_mL;                                     // mL (baseline)
+                        amountBody[t]    = initial_Concentration * bodyVolume[t] / 1000; // mg
                         plasmaConc[t]    = initial_Concentration;                    // mg/L
-                        amountBody[t]    = plasmaConc[t] * V_mL / 1000;             // mg/L × mL / 1000 = mg
                         // Dead volume carries previous end-of-exchange dialysate conc (0 on first exchange)
                         amountDial[t]    = deadVolume_mL * prevDialysateConc_mgL / 1000; // mL × mg/L / 1000 = mg
-                        dialysateConc[t] = amountDial[t] / (deadVolume_mL + fillVolume[exchange]) * 1000;
+                        dialysateConc[t] = amountDial[t] / (deadVolume_mL + fillVolume[exchange] + ufData[exchange]) * 1000;
                     } else {
-                        // Carry plasma forward from previous minute
-                        plasmaConc[t]    = plasmaConc[t - 1] + netMovtIn[t - 1] / V_mL * 1000;
-                        amountBody[t]    = amountBody[t - 1] + netMovtIn[t - 1];
+                        // Carry mass and volume forward from previous minute, derive concentration
+                        bodyVolume[t]    = bodyVolume[t - 1] + volRate[t - 1];      // mL
+                        amountBody[t]    = amountBody[t - 1] + netMovtIn[t - 1];    // mg
+                        plasmaConc[t]    = amountBody[t] / bodyVolume[t] * 1000;    // mg/L
                         // Dead volume retains the dialysate concentration from end of previous exchange
                         amountDial[t]    = deadVolume_mL * prevDialysateConc_mgL / 1000;
-                        dialysateConc[t] = amountDial[t] / (deadVolume_mL + fillVolume[exchange]) * 1000;
+                        dialysateConc[t] = amountDial[t] / (deadVolume_mL + fillVolume[exchange] + ufData[exchange]) * 1000;
                     }
 
-                    // Flux at exchange start (mg/min):
-                    // diffusion: MTAC (mL/min) × ΔC (mg/L) / 1000  [mL/min × mg/L = mL×mg/(L×min) = mg/1000/min → /1000 gives mg/min]
-                    // convection: uf (mL/min) × C_plasma_effective (mg/L) / 1000
-                    fluxDial[t]  = (plasmaConc[t] - dialysateConc[t]) * mtac / 1000
-                                 + (plasmaConc[t] - f * (plasmaConc[t] - dialysateConc[t])) * uf / 1000;
+                    // Diffusion-only flux (mg/min): MTAC (mL/min) × ΔC (mg/L) / 1000
+                    fluxDial[t]  = (plasmaConc[t] - dialysateConc[t]) * mtac / 1000;
                     excretion[t] = plasmaConc[t] * kru / 1000;                      // mg/L × mL/min / 1000 = mg/min
                     netMovtIn[t] = gen - excretion[t] - fluxDial[t];               // mg/min
+                    volRate[t]   = addRate - uf;                                    // mL/min (UF drains during dwell)
 
                     if (exchange === 0) {
                         peakConc[peak_index++] = plasmaConc[t];
@@ -224,29 +234,32 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
 
                     // --- Active dwell ---
                     while (t < initialTime + effectiveTime_min) {
-                        plasmaConc[t]    = plasmaConc[t - 1] + netMovtIn[t - 1] / V_mL * 1000;
+                        bodyVolume[t]    = bodyVolume[t - 1] + volRate[t - 1];
                         amountBody[t]    = amountBody[t - 1] + netMovtIn[t - 1];
+                        plasmaConc[t]    = amountBody[t] / bodyVolume[t] * 1000;
                         amountDial[t]    = amountDial[t - 1] + fluxDial[t - 1];    // accumulate urea in dialysate
-                        dialysateConc[t] = amountDial[t] / (deadVolume_mL + fillVolume[exchange]) * 1000;
-                        fluxDial[t]      = (plasmaConc[t] - dialysateConc[t]) * mtac / 1000
-                                         + (plasmaConc[t] - f * (plasmaConc[t] - dialysateConc[t])) * uf / 1000;
+                        dialysateConc[t] = amountDial[t] / (deadVolume_mL + fillVolume[exchange] + ufData[exchange]) * 1000;
+                        fluxDial[t]      = (plasmaConc[t] - dialysateConc[t]) * mtac / 1000;
                         excretion[t]     = plasmaConc[t] * kru / 1000;
                         netMovtIn[t]     = gen - excretion[t] - fluxDial[t];
+                        volRate[t]       = addRate - uf;
                         t += 1;
                     }
 
                     // Save dialysate concentration at end of active dwell for dead volume carry-forward
                     prevDialysateConc_mgL = dialysateConc[t - 1]; // mg/L
 
-                    // --- Dead time (drain/fill, no mass transfer) ---
+                    // --- Dead time (drain/fill, no mass transfer; no UF) ---
                     while (t < initialTime + totalTime_min) {
-                        plasmaConc[t]    = plasmaConc[t - 1] + netMovtIn[t - 1] / V_mL * 1000;
+                        bodyVolume[t]    = bodyVolume[t - 1] + volRate[t - 1];
                         amountBody[t]    = amountBody[t - 1] + netMovtIn[t - 1];
+                        plasmaConc[t]    = amountBody[t] / bodyVolume[t] * 1000;
                         amountDial[t]    = 0;
                         dialysateConc[t] = 0;
                         fluxDial[t]      = 0;
                         excretion[t]     = plasmaConc[t] * kru / 1000;
                         netMovtIn[t]     = gen - excretion[t];
+                        volRate[t]       = addRate;
                         t += 1;
                     }
                 }
@@ -255,24 +268,28 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
             // --- Non-treatment minutes for the day (no dialysis) ---
             if (t === 0) {
                 // Day 0 not a treatment day: initialize
+                bodyVolume[t] = V_mL;
+                amountBody[t] = initial_Concentration * bodyVolume[t] / 1000;
                 plasmaConc[t] = initial_Concentration;
-                amountBody[t] = plasmaConc[t] * V_mL / 1000;
                 amountDial[t] = 0;
                 dialysateConc[t] = 0;
                 fluxDial[t]   = 0;
                 excretion[t]  = plasmaConc[t] * kru / 1000;
                 netMovtIn[t]  = gen - excretion[t];
+                volRate[t]    = addRate;
                 t += 1;
             }
 
             while (t < (day + 1) * 24 * 60) {
-                plasmaConc[t]    = plasmaConc[t - 1] + netMovtIn[t - 1] / V_mL * 1000;
+                bodyVolume[t]    = bodyVolume[t - 1] + volRate[t - 1];
                 amountBody[t]    = amountBody[t - 1] + netMovtIn[t - 1];
+                plasmaConc[t]    = amountBody[t] / bodyVolume[t] * 1000;
                 amountDial[t]    = 0;
                 dialysateConc[t] = 0;
                 fluxDial[t]      = 0;
                 excretion[t]     = plasmaConc[t] * kru / 1000;
                 netMovtIn[t]     = gen - excretion[t];
+                volRate[t]       = addRate;
                 t += 1;
             }
         }
@@ -301,6 +318,7 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
             t: i,
             plasmaConc_mgL:     +plasmaConc[i].toFixed(4),
             dialysateConc_mgL:  +dialysateConc[i].toFixed(4),
+            bodyVolume_mL:      +bodyVolume[i].toFixed(4),
             amountBody_mg:      +amountBody[i].toFixed(4),
             amountDial_mg:      +amountDial[i].toFixed(4),
             fluxDial_mgPerMin:  +fluxDial[i].toFixed(6),
@@ -314,6 +332,7 @@ function pdCalculator(kru, mtac, volume, gen, volumeData, timeData, ufData, days
         plasmaConcentration: plasmaConc,
         peakConcentration: peakConc,
         dialysateConcentration: dialysateConc,
+        bodyVolume,
         plasmaToDialysate: fluxDial,
         excretion,
         gen
