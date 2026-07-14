@@ -207,7 +207,7 @@
 
         .days-selector {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             margin-bottom: 20px;
             justify-content: flex-start;
         }
@@ -392,6 +392,17 @@
         .results-table td {
             padding: 8px 16px;
             text-align: left;
+        }
+
+        .header-color-dot {
+            display: inline-block;
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            background-color: transparent;
+            border: 1px solid #ccc;
         }
 
         .results-table th {
@@ -594,10 +605,10 @@
                         <thead>
                             <tr>
                                 <th></th>
-                                <th>Treatment 1</th>
-                                <th>Treatment 2</th>
-                                <th>Treatment 3</th>
-                                <th>Treatment 4 (4th Most Recent)</th>
+                                <th><span class="header-color-dot" id="color-dot-tx1"></span>Treatment 1</th>
+                                <th><span class="header-color-dot" id="color-dot-tx2"></span>Treatment 2</th>
+                                <th><span class="header-color-dot" id="color-dot-tx3"></span>Treatment 3</th>
+                                <th><span class="header-color-dot" id="color-dot-tx4"></span>Treatment 4</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -623,7 +634,7 @@
                                 <td id="tac-tx4">-</td>
                             </tr>
                             <tr>
-                                <td>Kurea (mL/min)</td>
+                                <td>Time averaged Kurea (mL plasma/min)</td>
                                 <td id="kurea-tx1">-</td>
                                 <td id="kurea-tx2">-</td>
                                 <td id="kurea-tx3">-</td>
@@ -637,7 +648,7 @@
     </main>
 
     <footer>
-        Version 1.0
+        Last updated 07/13/2026
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

@@ -42,7 +42,8 @@ function computeGeneration(pna, weight) {
 const treatments = {
     treatment2: null  // Most recent, used by graph
 };
-const treatmentHistory = [];  // [{results, inputs}, ...] - index 0 is most recent, max 4
+const treatmentHistory = [];  // [{results, inputs, colorIndex}, ...] - index 0 is most recent, max 4
+let nextColorIndex = 0;  // Cycles 0-3; assigns each new treatment run a persistent color slot
 
 // Gather form inputs for a specific prescription
 function gatherPrescriptionInputs(prescriptionNum) {
@@ -346,19 +347,15 @@ function updateGraphWithTreatment(treatmentNum, results) {
         timeData.push(i);
     }
     
-    const treatmentsData = [];
-    for (let i = 0; i < 4; i++) {
-        const entry = treatmentHistory[i];
-        if (!entry) {
-            treatmentsData.push({ data: [], avg: null });
-            continue;
-        }
+    // Slot by colorIndex (not array position) so a treatment run keeps its color as history shifts
+    const treatmentsData = [{ data: [], avg: null }, { data: [], avg: null }, { data: [], avg: null }, { data: [], avg: null }];
+    treatmentHistory.forEach(entry => {
         const arr = entry.results.plasmaConcentration
             .filter((_, j) => j % 10 === 0)
             .map(v => v / 10 * 0.93); // mg/L → mg/dL (plasma)
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
-        treatmentsData.push({ data: arr, avg });
-    }
+        treatmentsData[entry.colorIndex] = { data: arr, avg };
+    });
     
     if (typeof updateGraph === 'function') {
         updateGraph(timeData, treatmentsData);
@@ -372,50 +369,60 @@ function updateAllResults() {
     for (let col = 1; col <= 4; col++) {
         const entry = treatmentHistory[col - 1];
         const suffix = `tx${col}`;
-        
+        const dot = document.getElementById(`color-dot-${suffix}`);
+
         if (!entry) {
             metrics.forEach(m => {
                 const el = document.getElementById(`${m}-${suffix}`);
                 if (el) el.textContent = '-';
             });
+            if (dot) dot.style.backgroundColor = 'transparent';
             continue;
         }
-        
+
+        if (dot) dot.style.backgroundColor = TREATMENT_COLORS[entry.colorIndex];
+
         const { results, inputs } = entry;
         const { plasmaConcentration, peakConcentration, plasmaToDialysate, excretion } = results;
-        const { kru, volume } = inputs;
+        const { volume } = inputs;
 
         // TAC: mean plasma conc over all 10080 minutes (mg/L)
         const tac = plasmaConcentration.reduce((s, v) => s + v, 0) / plasmaConcentration.length;
         // APC: mean of start-of-day peak concentrations (mg/L)
         const apc = peakConcentration.length > 0
             ? peakConcentration.reduce((s, v) => s + v, 0) / peakConcentration.length : 0;
+        // Weekly renal removal: sum of renal excretion (mg/min) × 1 min = mg
+        const weeklyRenalRemoval = excretion.reduce((s, v) => s + v, 0);
         // Weekly removal: sum of (dialysate flux + renal excretion) in mg/min × 1 min = mg
-        const weeklyRemoval = plasmaToDialysate.reduce((s, v) => s + v, 0)
-                            + excretion.reduce((s, v) => s + v, 0);
+        const weeklyRemoval = plasmaToDialysate.reduce((s, v) => s + v, 0) + weeklyRenalRemoval;
         // stdKt/V = total clearance (mL) / V (mL)
         // total clearance (mL) = weeklyRemoval (mg) / TAC (mg/L) × 1000 (mL/L)
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / (tac * 0.93) * 1000) / V_mL : 0;
+        // Time-averaged Kurea (mL plasma/min): weekly renal removal / (TAC × total minutes) × 1000.
+        // Derived from simulated excretion rather than the raw Kru input; algebraically equals
+        // the plasma-water clearance (kru × 0.93) since kru is held constant across the simulation.
+        const kurea = tac > 0 ? (weeklyRenalRemoval / (tac * plasmaConcentration.length)) * 1000 : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
         document.getElementById(`apc-${suffix}`).textContent = (apc / 10 * 0.93).toFixed(1);
         document.getElementById(`tac-${suffix}`).textContent = (tac / 10 * 0.93).toFixed(1);
-        document.getElementById(`kurea-${suffix}`).textContent = kru.toFixed(2);
+        document.getElementById(`kurea-${suffix}`).textContent = kurea.toFixed(2);
     }
 
     if (treatmentHistory.length > 0) {
         const { results, inputs } = treatmentHistory[0];
         const { plasmaConcentration, peakConcentration, plasmaToDialysate, excretion } = results;
-        const { kru, volume } = inputs;
+        const { volume } = inputs;
         const tac = plasmaConcentration.reduce((s, v) => s + v, 0) / plasmaConcentration.length;
         const apc = peakConcentration.length > 0
             ? peakConcentration.reduce((s, v) => s + v, 0) / peakConcentration.length : 0;
-        const weeklyRemoval = plasmaToDialysate.reduce((s, v) => s + v, 0)
-                            + excretion.reduce((s, v) => s + v, 0);
+        const weeklyRenalRemoval = excretion.reduce((s, v) => s + v, 0);
+        const weeklyRemoval = plasmaToDialysate.reduce((s, v) => s + v, 0) + weeklyRenalRemoval;
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / (tac * 0.93) * 1000) / V_mL : 0;
-        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10*0.93).toFixed(2)} mg/dL, TAC: ${(tac/10*0.93).toFixed(2)} mg/dL, Kurea: ${kru.toFixed(2)}`);
+        const kurea = tac > 0 ? (weeklyRenalRemoval / (tac * plasmaConcentration.length)) * 1000 : 0;
+        console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10*0.93).toFixed(2)} mg/dL, TAC: ${(tac/10*0.93).toFixed(2)} mg/dL, Kurea: ${kurea.toFixed(2)} mL plasma/min`);
     }
 }
 
@@ -452,7 +459,8 @@ function runTreatment(treatmentNum) {
         );
         
         treatments.treatment2 = results;
-        treatmentHistory.unshift({ results, inputs });
+        treatmentHistory.unshift({ results, inputs, colorIndex: nextColorIndex });
+        nextColorIndex = (nextColorIndex + 1) % 4;
         if (treatmentHistory.length > 4) treatmentHistory.pop();
         
         // Update graph (shows most recent)
@@ -567,7 +575,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         input.addEventListener('change', () => {
                             const val = parseFloat(input.value);
                             if (input.value !== '' && val === 0) {
-                                alert('Warning: A UF of 0 mL means no fluid will be removed during this exchange. Please confirm this is intended.');
+                                input.value = 1;
+                            }
+                        });
+                    }
+                    if (field === 'volume') {
+                        input.addEventListener('change', () => {
+                            const val = parseFloat(input.value);
+                            if (input.value !== '' && val > 4) {
+                                alert(`Warning: Exchange volume is ${val} L, which exceeds the typical 4 L maximum. Please confirm this is intended.`);
                             }
                         });
                     }
@@ -596,6 +612,7 @@ function resetAll() {
     // Clear treatment history and graph data
     treatmentHistory.length = 0;
     treatments.treatment2 = null;
+    nextColorIndex = 0;
 
     // Reset graph to empty state
     if (typeof updateGraph === 'function') {
@@ -609,6 +626,10 @@ function resetAll() {
             if (el) el.textContent = '-';
         }
     });
+    for (let col = 1; col <= 4; col++) {
+        const dot = document.getElementById(`color-dot-tx${col}`);
+        if (dot) dot.style.backgroundColor = 'transparent';
+    }
 
     // Reset prescription inputs (exchange table)
     ['rep', 'add1', 'add2'].forEach(type => {
