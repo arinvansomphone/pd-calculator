@@ -82,10 +82,11 @@ function gatherPrescriptionInputs(prescriptionNum) {
     
     if (repNumber > 0 && repVolume > 0 && repTimeTotal > 0) {
         const repTimePerExchange = repTimeTotal / repNumber;
+        const repUFPerExchange = repUF / repNumber;
         for (let i = 0; i < repNumber; i++) {
             volumeData.push(repVolume);
             timeData.push(repTimePerExchange); // Time in hours per exchange
-            ufData.push(repUF);
+            ufData.push(repUFPerExchange);     // UF in mL per exchange
         }
     }
     
@@ -97,10 +98,11 @@ function gatherPrescriptionInputs(prescriptionNum) {
     
     if (add1Number > 0 && add1Volume > 0 && add1TimeTotal > 0) {
         const add1TimePerExchange = add1TimeTotal / add1Number;
+        const add1UFPerExchange = add1UF / add1Number;
         for (let i = 0; i < add1Number; i++) {
             volumeData.push(add1Volume);
             timeData.push(add1TimePerExchange); // Time in hours per exchange
-            ufData.push(add1UF);
+            ufData.push(add1UFPerExchange);     // UF in mL per exchange
         }
     }
     
@@ -112,10 +114,11 @@ function gatherPrescriptionInputs(prescriptionNum) {
     
     if (add2Number > 0 && add2Volume > 0 && add2TimeTotal > 0) {
         const add2TimePerExchange = add2TimeTotal / add2Number;
+        const add2UFPerExchange = add2UF / add2Number;
         for (let i = 0; i < add2Number; i++) {
             volumeData.push(add2Volume);
             timeData.push(add2TimePerExchange); // Time in hours per exchange
-            ufData.push(add2UF);
+            ufData.push(add2UFPerExchange);     // UF in mL per exchange
         }
     }
     
