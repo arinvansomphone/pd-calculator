@@ -39,14 +39,50 @@ The simulation's internal unit system is documented at [controller.js:140](contr
 - Concentrations inside `pdCalculator` are **mg/L of plasma water** (urea distributes only into body water, and Watson's V is total body water — so the mass-balance equations naturally track plasma-water concentration). The UI reports **mg/dL of whole plasma**, the lab/clinical convention: the boundary multiplies by `0.93 / 10` (`updateAllResults`, `updateGraphWithTreatment`). Whole-plasma concentration is *lower* than plasma-water because urea is excluded from the protein/lipid fraction (~7%).
 - **stdKt/V** ([controller.js:380](controller.js:380), duplicated at [:398](controller.js:398)) uses **whole-plasma TAC** over **body-water volume** — the canonical PD form `K_wp · t / V_urea`. Since internal `tac` is mg/L plasma water, the formula divides by `(tac * 0.93)`. Don't "simplify" by dropping the 0.93 — the result is ~7.5% off the canonical clinical target without it.
 - **Excel upslope test (#2):** with the whole-plasma display, recover `gen` from the observed plasma slope as `gen = slope × V_water / 0.93 / 100` (slope in mg/dL/min, V_water in mL). Without the `÷ 0.93`, the back-calc gives `0.93 × gen`.
-- `kru` and `mtac` are **mL/min**. The `kru` input is treated as **whole plasma** clearance and converted to **plasma water** inside `pdCalculator` via `kru = kru * 0.93` ([controller.js:143](controller.js:143)) — plasma-water clearance is *smaller* than whole-plasma because urea is concentrated in the water fraction, so `K_pw = 0.93 × K_wp`. This is a local parameter reassignment, so it doesn't touch `inputs.kru`. The "Kurea (mL plasma/min)" cell in the results table no longer echoes that raw input — it's derived from simulated renal excretion as `weeklyRenalRemoval / (TAC × totalMinutes) × 1000` (`updateAllResults`, [controller.js:405](controller.js:405)), which algebraically works out to exactly `kru * 0.93` since `kru` is held constant across the week, but is computed from simulation output rather than parroting the input.
+- `kru` and `mtac` are **mL/min**. The `kru` input is treated as **whole plasma** clearance and converted to **plasma water** inside `pdCalculator` via `kru = kru * 0.93` ([controller.js:143](controller.js:143)) — plasma-water clearance is *smaller* than whole-plasma because urea is concentrated in the water fraction, so `K_pw = 0.93 × K_wp`. This is a local parameter reassignment, so it doesn't touch `inputs.kru`. Verified: weekly renal removal from the simulation equals `Kru_input × C_whole-plasma` summed minute-by-minute to floating-point exactness, and steady-state mass balance closes to 0.005%. **Do not add a second `× 0.93`** — it would under-clear renal urea by 7%.
+- The "Kurea (mL plasma/min)" cell is *derived* from simulated renal excretion rather than parroting the input: `weeklyRenalRemoval / (whole-plasma TAC × totalMinutes) × 1000` (`updateAllResults`, [controller.js:411](controller.js:411), duplicated at [:430](controller.js:430)). Like `stdKt/V`, it divides by `tac * 0.93` so the reported clearance is on the **whole-plasma** basis its label states — which recovers the entered `Kru` exactly, since `kru` is constant across the week. Dividing by plasma-water `tac` instead (as it did before) reports `0.93 × Kru` under a whole-plasma label, making Kurea the only output not on the same basis as TAC, APC, stdKt/V and the graph.
 - `volume` (Vd) input is **L**, converted to `V_mL` once — this is the **baseline** body water. Body water is now **time-varying** (`bodyVolume[t]`, mL): UF drains it during each effective dwell at rate `uf = ufData/effectiveTime_min`, and a steady daily intake `addRate = dailyUF / 1440` mL/min (the sum of the day's UF, 0 on skipped days) refills it, so `bodyVolume` returns to `V_mL` exactly at every day boundary. Concentration is **derived** each minute as `amountBody / bodyVolume * 1000`, not incremented — so the mass balance (`amountBody`) and the volume bookkeeping (`volRate`) are tracked separately. `stdKt/V` still uses the baseline `volume*1000` as V_urea.
 - `ufData` is **mL per exchange**, derived by `gatherPrescriptionInputs` as the row's entered "Total UF (mL)" ÷ number of exchanges in that row (same pattern as `timeData`) — the UI field is a row/day total, not a per-exchange amount. The same `uf` rate feeds the body-volume drain — there is no longer a solute-convection use of UF.
-- **Dialysate volume** (denominator for `dialysateConc`) is `deadVolume_mL + fillVolume[exchange] + ufData[exchange]` — residual + instilled + the exchange's full UF, present from the start of the dwell (manuscript simplification). A larger bag lowers `Cd`, widening the `MTAC · (Cp − Cd)` gradient, so it raises modeled removal — negligible at low UF, but material for long high-UF dwells. Note the reference spreadsheet effectively omits the `+ ufData` term (keeps the bag at residual + instilled), so the two diverge once UF is non-trivial.
+- **Dialysate volume** (denominator for `dialysateConc`) is `deadVolume_mL + fillVolume[exchange] + ufData[exchange]` — residual + instilled + the exchange's full UF, present from the start of the dwell (manuscript simplification). A larger bag lowers `Cd`, widening the `MTAC · (Cp − Cd)` gradient, so it raises modeled removal — negligible at low UF, but material for long high-UF dwells. This matches the reference spreadsheet, which computes the same sum as `=$C$5*1000+$C$11+$G$6` (fill + residual + UF per cycle). *(An earlier note here claimed the spreadsheet omits the `+ ufData` term — that was wrong; verified against `8.17.26 ARIN CHECK New Test .xlsx`.)*
 - `gen` (urea-N generation, mg/min) comes from `computeGeneration(pna, weight)` using the Borah formula: `(nPNA × weight − 19) / 7.62 × 1000 / 1440`, clamped at zero. nPNA is g/kg/day.
 - Vd auto-fill in `calculateVolume()` uses the Watson formulas (sex-specific) — different from the formula in legacy `script.js`.
 
 If you change a unit, audit every place the variable flows and trace through to the four output cells. Recent commit history (`1bf9075`, `ff71611`, `7b4cc45`, `01919b5`) is almost entirely unit-conversion fixes — be deliberate.
+
+## Parity with the reference spreadsheet
+
+Validated against `8.17.26 ARIN CHECK New Test .xlsx`, sheet `CAPD 4 x 2L 24hrs`, by extracting
+every formula and rebuilding its algorithm independently. **The app and that spreadsheet agree to
+0.12%.** Structurally they are the same model:
+
+| | Spreadsheet | `pdCalculator` |
+|---|---|---|
+| Renal term | `C9 = 0.93*F9` applied to plasma water (`N = H/100*$C$9*5`) | `kru * 0.93` applied to plasma water |
+| Dead volume | 150 mL, carries end-of-dwell dialysate mass | 150 mL via `prevDialysateConc_mgL` |
+| Dead time | 15 min, diffusion off, renal continues | 15 min, same |
+| Dialysate volume | `=$C$5*1000+$C$11+$G$6` (fill + residual + UF) | `deadVolume_mL + fillVolume + ufData` |
+| Body volume | `C + D/1000 − E/1000` (intake vs UF) | `bodyVolume[t] + volRate[t]` |
+| Diffusion | `(H−I)/100 × MTAC × Δt`, no convection | `(Cp − Cd) * mtac / 1000` |
+| Time step | 5 min | **1 min** (app is the finer integrator) |
+| Horizon | one day iterated to steady state | full week (equivalent for 7-day CAPD) |
+| Generation | hardcoded `F8 = 4.947467` mg/min ("Bergstrom") | Borah → 5.012394 mg/min |
+
+Two things to know before chasing any future mismatch:
+
+- **The `× 0.93` on Kru is confirmed correct and identical to the reference.** The spreadsheet's own
+  `C9 = 0.93*F9` converts "Kru ml/min plasma" to "ml/min water" and applies it to the plasma-water
+  column, exactly as [controller.js:151](controller.js:151) does. Adding a second factor moves
+  *away* from the reference. Do not re-litigate this.
+- **The remaining ~1.3% is the generation formula, and it is a deliberate choice, not a bug.** The
+  app uses Borah; the spreadsheet hardcodes a hand-set Bergstrom constant for one patient (there is
+  no formula in the sheet to port). Feeding `4.947467` into the app reproduces the sheet's TAC to
+  0.12%. Decision on record: keep Borah.
+
+Known defects *in the spreadsheet* (not the app), as of the 8.17.26 file: in `CAPD 4 x 2L 24hrs`
+the four dwells run 70/69/89/49 five-minute intervals instead of 69 each, which inflates TAC by
+0.55–0.94% and unevenly across Kru; and typing a value into `C9` overwrites the `=0.93*F9` formula
+and silently switches the Kru basis to ml/min water (cell `H1` warns about this). Any reference
+table regenerated from that sheet should be checked for both first.
 
 ## State conventions
 

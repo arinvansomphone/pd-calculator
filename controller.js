@@ -352,12 +352,14 @@ function updateGraphWithTreatment(treatmentNum, results) {
     
     // Slot by colorIndex (not array position) so a treatment run keeps its color as history shifts
     const treatmentsData = [{ data: [], avg: null }, { data: [], avg: null }, { data: [], avg: null }, { data: [], avg: null }];
-    treatmentHistory.forEach(entry => {
+    treatmentHistory.forEach((entry, i) => {
         const arr = entry.results.plasmaConcentration
             .filter((_, j) => j % 10 === 0)
             .map(v => v / 10 * 0.93); // mg/L → mg/dL (plasma)
         const avg = arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) / arr.length : null;
-        treatmentsData[entry.colorIndex] = { data: arr, avg };
+        // num = the tx column this entry occupies in the results table (newest = Treatment 1),
+        // so the graph legend and the table use one numbering. Color still tracks colorIndex.
+        treatmentsData[entry.colorIndex] = { data: arr, avg, num: i + 1 };
     });
     
     if (typeof updateGraph === 'function') {
@@ -402,10 +404,13 @@ function updateAllResults() {
         // total clearance (mL) = weeklyRemoval (mg) / TAC (mg/L) × 1000 (mL/L)
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / (tac * 0.93) * 1000) / V_mL : 0;
-        // Time-averaged Kurea (mL plasma/min): weekly renal removal / (TAC × total minutes) × 1000.
-        // Derived from simulated excretion rather than the raw Kru input; algebraically equals
-        // the plasma-water clearance (kru × 0.93) since kru is held constant across the simulation.
-        const kurea = tac > 0 ? (weeklyRenalRemoval / (tac * plasmaConcentration.length)) * 1000 : 0;
+        // Time-averaged Kurea (mL plasma/min): weekly renal removal / (whole-plasma TAC × total
+        // minutes) × 1000. Derived from simulated excretion rather than the raw Kru input. Uses
+        // whole-plasma TAC (tac × 0.93), like stdKt/V above, so the result is a whole-plasma
+        // clearance matching the cell's units — it recovers the entered Kru exactly, since kru
+        // is held constant across the simulation. Dividing by plasma-water tac instead would
+        // report 0.93 × Kru under a whole-plasma label.
+        const kurea = tac > 0 ? (weeklyRenalRemoval / (tac * 0.93 * plasmaConcentration.length)) * 1000 : 0;
 
         document.getElementById(`ktv-${suffix}`).textContent = ktv.toFixed(2);
         document.getElementById(`apc-${suffix}`).textContent = (apc / 10 * 0.93).toFixed(1);
@@ -424,7 +429,7 @@ function updateAllResults() {
         const weeklyRemoval = plasmaToDialysate.reduce((s, v) => s + v, 0) + weeklyRenalRemoval;
         const V_mL = volume * 1000;
         const ktv = tac > 0 ? (weeklyRemoval / (tac * 0.93) * 1000) / V_mL : 0;
-        const kurea = tac > 0 ? (weeklyRenalRemoval / (tac * plasmaConcentration.length)) * 1000 : 0;
+        const kurea = tac > 0 ? (weeklyRenalRemoval / (tac * 0.93 * plasmaConcentration.length)) * 1000 : 0;
         console.log(`stdKt/V: ${ktv.toFixed(2)}, APC: ${(apc/10*0.93).toFixed(2)} mg/dL, TAC: ${(tac/10*0.93).toFixed(2)} mg/dL, Kurea: ${kurea.toFixed(2)} mL plasma/min`);
     }
 }
