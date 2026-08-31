@@ -45,7 +45,10 @@ function createCustomLegend() {
     datasets.forEach(dataset => {
         const legendItem = document.createElement('div');
         legendItem.className = 'legend-item';
-        
+        legendItem.id = `legend-item-${dataset.index}`;
+        // Slots start empty; updateLegendLabels reveals a slot once it holds a treatment
+        legendItem.style.display = 'none';
+
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = true;
@@ -64,13 +67,39 @@ function createCustomLegend() {
         colorBox.style.color = dataset.color;
         
         const label = document.createElement('span');
+        label.id = `legend-label-${dataset.index}`;
         label.textContent = dataset.label;
-        
+
         legendItem.appendChild(checkbox);
         legendItem.appendChild(colorBox);
         legendItem.appendChild(label);
         legendContainer.appendChild(legendItem);
     });
+}
+
+// Renumber the legend to match the Numeric Results columns.
+// Colors are pinned to a slot for the life of a run (see colorIndex in controller.js), but the
+// table numbers by recency — newest is Treatment 1 — so a slot's *number* changes as history
+// shifts. treatmentsData[slot].num carries the column that slot occupies; slots with no
+// treatment are hidden rather than advertising a run that isn't there.
+function updateLegendLabels(treatmentsData) {
+    for (let i = 0; i < 4; i++) {
+        const treatment = treatmentsData[i];
+        const hasData = !!(treatment && treatment.data && treatment.data.length > 0);
+        const name = hasData && treatment.num ? `Treatment ${treatment.num}` : TREATMENT_LABELS[i];
+
+        [[i * 2, name, 0], [i * 2 + 1, `${name} Avg`, 1]].forEach(([idx, text, sub]) => {
+            const item = document.getElementById(`legend-item-${idx}`);
+            const label = document.getElementById(`legend-label-${idx}`);
+            if (item) {
+                item.style.display = hasData ? '' : 'none';
+                // Flex order so the legend reads 1, 2, 3, 4 like the results columns,
+                // instead of in color-slot order; each line sits next to its own Avg.
+                item.style.order = hasData ? treatment.num * 2 + sub : 99;
+            }
+            if (label) label.textContent = text;
+        });
+    }
 }
 
 function initializeGraph() {
@@ -198,12 +227,19 @@ function updateGraph(timeData, treatmentsData) {
                 plasmaChart.data.datasets[avgIdx].data = treatment.avg !== null
                     ? timeData.map(() => treatment.avg)
                     : [];
+                // Keep tooltip names on the same numbering as the results table
+                const name = treatment.num ? `Treatment ${treatment.num}` : TREATMENT_LABELS[i];
+                plasmaChart.data.datasets[dataIdx].label = name;
+                plasmaChart.data.datasets[avgIdx].label = `${name} Avg`;
             } else {
                 plasmaChart.data.datasets[dataIdx].data = [];
                 plasmaChart.data.datasets[avgIdx].data = [];
+                plasmaChart.data.datasets[dataIdx].label = TREATMENT_LABELS[i];
+                plasmaChart.data.datasets[avgIdx].label = TREATMENT_LABELS[i] + ' Avg';
             }
         }
-        
+
+        updateLegendLabels(treatmentsData);
         plasmaChart.update();
     }
 }
